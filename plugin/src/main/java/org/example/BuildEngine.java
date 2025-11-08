@@ -9,7 +9,6 @@ import java.io.File;
 
 public class BuildEngine {
 
-
   private final BuildContext buildContext;
 
   public BuildEngine(BuildContext buildContext) {

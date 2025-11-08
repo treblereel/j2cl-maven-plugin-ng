@@ -4,7 +4,6 @@ import org.apache.maven.artifact.Artifact;
 import org.example.context.BuildContext;
 
 import java.io.File;
-import java.util.concurrent.CompletableFuture;
 
 public class ExtractTask implements Task {
 
@@ -19,6 +18,15 @@ public class ExtractTask implements Task {
 
   @Override
   public File get() {
+    System.out.println("Starting extraction of artifact: " + artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion());
+    try {
+      Thread.sleep(1000); // Simulate time-consuming extraction
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+
+    System.out.println("Completed extraction of artifact: " + artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion());
+
     return null;
   }
 }
