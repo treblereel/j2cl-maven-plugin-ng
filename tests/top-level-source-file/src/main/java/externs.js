@@ -1,0 +1,8 @@
+/**
+ * @externs
+ */
+
+/**
+ * @constructor
+ */
+function Foo() {}

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.treblereel.j2cl.plugin.tests</groupId>
+        <artifactId>j2cl-plugin-tests</artifactId>
+        <version>0.24</version>
+    </parent>
+
+    <artifactId>java-assertions</artifactId>
+    <name>Test: Java Assertions</name>
+    <description>Assert statement compilation with checkAssertions toggle</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-emul</artifactId>
+            <version>v20260906-1</version>
+            <classifier>sources</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>gwttestcase-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.treblereel.j2cl.plugin</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>0.24</version>
+                <executions>
+                    <execution>
+                        <id>test-js-with-assertions-true</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <checkAssertions>true</checkAssertions>
+                            <defines>
+                                <expect.assertions.armed>true</expect.assertions.armed>
+                            </defines>
+                            <webappDirectory>${project.build.directory}/${project.build.finalName}-assertions-true</webappDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>test-js-with-assertions-false</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <checkAssertions>false</checkAssertions>
+                            <defines>
+                                <expect.assertions.armed>false</expect.assertions.armed>
+                            </defines>
+                            <webappDirectory>${project.build.directory}/${project.build.finalName}-assertions-false</webappDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

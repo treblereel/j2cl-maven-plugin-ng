@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.treblereel.j2cl.plugin.samples</groupId>
+    <artifactId>wasm-jsinterop-sample</artifactId>
+    <version>0.24</version>
+    <name>Sample: WASM JsInterop</name>
+    <description>Bidirectional Java/WASM and JavaScript interop demo</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.jsinterop</groupId>
+            <artifactId>jsinterop-annotations</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.treblereel.j2cl.plugin</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>0.24</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <backend>WASM</backend>
+                    <compilationLevel>BUNDLE</compilationLevel>
+                    <wasmEntryPoints>
+                        <wasmEntryPoint>example.wasm.Calculator#add</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Calculator#subtract</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Calculator#multiply</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Calculator#factorial</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Calculator#fibonacci</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Calculator#isPrime</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Benchmark#sortArray</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.Benchmark#computePrimes</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.JsBridge#addWithLog</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.JsBridge#fibonacciWithSteps</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.JsBridge#countPrimesWithProgress</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.DomDemo#createElements</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.DomDemo#updateElement</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.DomDemo#clearContainer</wasmEntryPoint>
+                    </wasmEntryPoints>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

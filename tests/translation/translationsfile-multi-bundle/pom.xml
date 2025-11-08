@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.treblereel.j2cl.plugin.tests</groupId>
+        <artifactId>translation-tests</artifactId>
+        <version>0.24</version>
+    </parent>
+
+    <artifactId>translationsfile-multi-bundle</artifactId>
+    <name>Test: Multi-Bundle XTB (single file, multiple translationbundle)</name>
+    <description>Tests that a single XTB file with multiple translationbundle elements works correctly</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.jsinterop</groupId>
+            <artifactId>jsinterop-annotations</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-emul</artifactId>
+            <version>v20260906-1</version>
+            <classifier>sources</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>gwttestcase-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl</groupId>
+            <artifactId>junit-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.treblereel.j2cl.plugin</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>0.24</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- Test 1: default (no translation, English baseline) -->
+                    <execution>
+                        <id>test-default</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-multi-bundle/test-default.js</initialScriptFilename>
+                            <defines>
+                                <holder.value>I guess something happened!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 2: Czech from multi-bundle file -->
+                    <execution>
+                        <id>test-cz</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-multi-bundle/test-cz.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/messages_all.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>cz</goog.LOCALE>
+                                <holder.value>Asi se něco stalo!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 3: German from multi-bundle file -->
+                    <execution>
+                        <id>test-de</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-multi-bundle/test-de.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/messages_all.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>de</goog.LOCALE>
+                                <holder.value>Ich schätze, es ist etwas passiert!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 4: French from multi-bundle file -->
+                    <execution>
+                        <id>test-fr</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-multi-bundle/test-fr.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/messages_all.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>fr</goog.LOCALE>
+                                <holder.value>Je suppose qu'il s'est passé quelque chose !</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

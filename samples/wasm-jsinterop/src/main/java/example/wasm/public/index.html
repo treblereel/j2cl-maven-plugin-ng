@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J2CL WASM &harr; JS Interop Demo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 0.5rem; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; max-width: 1200px; margin: 0 auto; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
+        .card h2 { font-size: 1.1rem; color: #38bdf8; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .arrow { font-size: 1.2rem; }
+        .arrow.js-to-wasm { color: #fbbf24; }
+        .arrow.wasm-to-js { color: #34d399; }
+        .arrow.bidi { color: #c084fc; }
+        .arrow.dom { color: #f472b6; }
+        .row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; flex-wrap: wrap; }
+        label { color: #94a3b8; font-size: 0.85rem; min-width: 70px; }
+        input[type="number"] { background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.9rem; width: 120px; }
+        button { background: #3b82f6; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+        button:hover { background: #2563eb; }
+        button.green { background: #10b981; }
+        button.green:hover { background: #059669; }
+        button.purple { background: #8b5cf6; }
+        button.purple:hover { background: #7c3aed; }
+        button.pink { background: #ec4899; }
+        button.pink:hover { background: #db2777; }
+        .result { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.6rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; min-height: 2rem; white-space: pre-wrap; word-break: break-all; }
+        .result .label { color: #64748b; }
+        .result .wasm { color: #fbbf24; }
+        .result .js { color: #34d399; }
+        .result .match { color: #10b981; }
+        .result .mismatch { color: #ef4444; }
+        .wasm-console { background: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 0.6rem; margin-top: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; }
+        .wasm-console .log-entry { color: #c084fc; border-bottom: 1px solid #1e293b; padding: 2px 0; }
+        .wasm-console .log-entry .ts { color: #64748b; }
+        .dom-output { display: flex; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .dom-box { background: #0f172a; border: 2px solid #475569; border-radius: 8px; padding: 0.8rem 1.2rem; text-align: center; min-width: 120px; transition: border-color 0.3s, transform 0.2s; }
+        .dom-box.updated { border-color: #c084fc; transform: scale(1.05); }
+        .dom-box .dom-label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.3rem; }
+        .dom-box .dom-value { font-size: 1.4rem; font-weight: bold; color: #c084fc; font-family: 'JetBrains Mono', monospace; }
+        .benchmark-bar { height: 20px; border-radius: 4px; margin: 2px 0; transition: width 0.5s; display: flex; align-items: center; padding-left: 6px; font-size: 0.75rem; }
+        .benchmark-bar.wasm-bar { background: #fbbf24; color: #0f172a; }
+        .benchmark-bar.js-bar { background: #34d399; color: #0f172a; }
+        #wasm-dom-container { min-height: 30px; }
+        #wasm-dom-value { padding: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #94a3b8; }
+        #status { text-align: center; padding: 1rem; font-size: 1rem; }
+        #status.loading { color: #fbbf24; }
+        #status.ready { color: #10b981; }
+        #status.error { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>J2CL WASM &harr; JavaScript Interop</h1>
+    <p class="subtitle">Java compiled to WebAssembly &mdash; direct DOM access, JS callbacks, bidirectional data flow</p>
+    <div id="status" class="loading">Loading WASM module...</div>
+
+    <div class="grid" id="app" style="display:none">
+
+        <!-- DOM Manipulation from WASM -->
+        <div class="card">
+            <h2><span class="arrow dom">WASM &rarr; DOM</span> Direct DOM Access</h2>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem">
+                Java code calls <code>document.createElement()</code>, <code>.appendChild()</code>,
+                <code>.style</code> via <code>@JsType(isNative=true)</code> bindings.
+                No JS glue &mdash; WASM talks to the DOM API directly.
+            </p>
+            <div class="row">
+                <label>count:</label><input type="number" id="dom-count" value="3">
+                <button class="pink" onclick="runCreateElements()">Create Elements</button>
+                <button onclick="runClearContainer()">Clear</button>
+            </div>
+            <div class="row">
+                <label>value:</label><input type="number" id="dom-value-input" value="42">
+                <button class="pink" onclick="runUpdateElement()">Update from WASM</button>
+            </div>
+            <div id="wasm-dom-value">Waiting for WASM to update this element...</div>
+            <div id="wasm-dom-container"></div>
+        </div>
+
+        <!-- WASM -> JS Callbacks -->
+        <div class="card">
+            <h2><span class="arrow bidi">WASM &rarr; JS</span> Callbacks</h2>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:0.75rem">
+                WASM calls JS functions via <code>@JsMethod</code> to log and update UI.
+            </p>
+            <div class="row">
+                <label>a:</label><input type="number" id="cb-a" value="25">
+                <label>b:</label><input type="number" id="cb-b" value="17">
+                <button class="purple" onclick="runAddWithLog()">Add with Log</button>
+            </div>
+            <div class="row">
+                <label>n:</label><input type="number" id="cb-n" value="15">
+                <button class="purple" onclick="runFibSteps()">Fibonacci Steps</button>
+            </div>
+            <div class="row">
+                <label>limit:</label><input type="number" id="cb-limit" value="10000">
+                <button class="purple" onclick="runPrimesProgress()">Primes with Progress</button>
+            </div>
+            <div class="dom-output">
+                <div class="dom-box" id="dom-0">
+                    <div class="dom-label">Add Result</div>
+                    <div class="dom-value" id="dom-val-0">-</div>
+                </div>
+                <div class="dom-box" id="dom-1">
+                    <div class="dom-label">Fibonacci</div>
+                    <div class="dom-value" id="dom-val-1">-</div>
+                </div>
+                <div class="dom-box" id="dom-2">
+                    <div class="dom-label">Prime Count</div>
+                    <div class="dom-value" id="dom-val-2">-</div>
+                </div>
+            </div>
+            <div class="wasm-console" id="wasm-console">
+                <div class="log-entry"><span class="ts">[ready]</span> WASM console</div>
+            </div>
+        </div>
+
+        <!-- Calculator: JS calls WASM -->
+        <div class="card">
+            <h2><span class="arrow js-to-wasm">JS &rarr; WASM</span> Calculator</h2>
+            <div class="row">
+                <label>a:</label><input type="number" id="calc-a" value="42">
+                <label>b:</label><input type="number" id="calc-b" value="17">
+            </div>
+            <div class="row">
+                <button onclick="runCalc('add')">add</button>
+                <button onclick="runCalc('subtract')">subtract</button>
+                <button onclick="runCalc('multiply')">multiply</button>
+            </div>
+            <div class="row">
+                <label>n:</label><input type="number" id="calc-n" value="10">
+                <button onclick="runCalcN('factorial')">factorial</button>
+                <button onclick="runCalcN('fibonacci')">fibonacci</button>
+                <button onclick="runCalcN('isPrime')">isPrime</button>
+            </div>
+            <div class="result" id="calc-result"><span class="label">Click a button</span></div>
+        </div>
+
+        <!-- Benchmark: WASM vs JS -->
+        <div class="card">
+            <h2><span class="arrow js-to-wasm">JS</span> vs <span class="arrow wasm-to-js">WASM</span> Benchmark</h2>
+            <div class="row">
+                <label>size:</label><input type="number" id="bench-size" value="100000">
+            </div>
+            <div class="row">
+                <button onclick="runBench('sort')">Sort Array</button>
+                <button onclick="runBench('primes')">Compute Primes</button>
+            </div>
+            <div class="result" id="bench-result"><span class="label">Compare JS vs WASM performance</span></div>
+        </div>
+
+    </div>
+
+    <script>
+        let wasm;
+        let wasmConsoleEl;
+        let logCounter = 0;
+
+        // --- JS callbacks called by WASM via @JsMethod ---
+        function wasmLog(code, value) {
+            logCounter++;
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="ts">[${logCounter}]</span> step=${code} value=${value}`;
+            wasmConsoleEl.appendChild(entry);
+            wasmConsoleEl.scrollTop = wasmConsoleEl.scrollHeight;
+        }
+
+        function wasmSetElement(elementId, value) {
+            const el = document.getElementById('dom-val-' + elementId);
+            if (el) {
+                el.textContent = value;
+                const box = document.getElementById('dom-' + elementId);
+                box.classList.add('updated');
+                setTimeout(() => box.classList.remove('updated'), 500);
+            }
+        }
+
+        function wasmNotify(eventType, a, b, result) {
+            const names = ['Addition', 'Fibonacci', 'Prime Count'];
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="ts">[event]</span> ${names[eventType] || '?'}: (${a}${b ? ', ' + b : ''}) = <b>${result}</b>`;
+            wasmConsoleEl.appendChild(entry);
+            wasmConsoleEl.scrollTop = wasmConsoleEl.scrollHeight;
+        }
+
+        // --- Standalone WASM import provider (no Closure Library) ---
+        let _nextClassId = 1000;
+
+        // Minimal goog.math.Long polyfill for WASM 64-bit integer support
+        class Long {
+            constructor(low, high) { this.low_ = low | 0; this.high_ = high | 0; }
+            getLowBits() { return this.low_; }
+            getHighBits() { return this.high_; }
+            static fromBits(low, high) { return new Long(low, high); }
+        }
+
+        function getWasmImports() {
+            return {
+                'WebAssembly': WebAssembly,
+                'imports': {
+                    // --- Error support ---
+                    'Error': Error,
+                    'Error.captureStackTrace': Error.captureStackTrace || function() {},
+                    'Error.constructor': () => new Error(),
+                    'Error.toString': (e) => e.toString(),
+                    'get Error.captureStackTrace': () => Error.captureStackTrace || function() {},
+                    'get Error.stack': (e) => e.stack,
+                    'set Error.stack': (e, v) => { e.stack = v; },
+
+                    // --- Object/misc ---
+                    '?.toString': (o) => o == null ? 'null' : o.toString(),
+
+                    // --- Number ---
+                    'Number': (v) => Number(v),
+                    'Number.prototype.toPrecision.call$2': (n, p) => Number.prototype.toPrecision.call(n, p),
+                    'Number.prototype.toString.call$1': (n) => Number.prototype.toString.call(n),
+                    'Number.prototype.toString.call$2': (n, radix) => Number.prototype.toString.call(n, radix),
+
+                    // --- Boolean ---
+                    'Boolean': (v) => Boolean(v),
+
+                    // --- Array ---
+                    'Array': () => [],
+                    'Array.at$1': (arr, i) => arr.at(i),
+                    'get Array.length': (arr) => arr.length,
+
+                    // --- Math ---
+                    'Math.acos': Math.acos,
+                    'Math.asin': Math.asin,
+                    'Math.atan': Math.atan,
+                    'Math.atan2': Math.atan2,
+                    'Math.cbrt': Math.cbrt,
+                    'Math.cos': Math.cos,
+                    'Math.cosh': Math.cosh,
+                    'Math.exp': Math.exp,
+                    'Math.expm1': Math.expm1,
+                    'Math.hypot': Math.hypot,
+                    'Math.log': Math.log,
+                    'Math.log10': Math.log10,
+                    'Math.log1p': Math.log1p,
+                    'Math.pow': Math.pow,
+                    'Math.random': Math.random,
+                    'Math.round': Math.round,
+                    'Math.sign': Math.sign,
+                    'Math.sin': Math.sin,
+                    'Math.sinh': Math.sinh,
+                    'Math.tan': Math.tan,
+                    'Math.tanh': Math.tanh,
+
+                    // --- Date ---
+                    'Date.UTC': Date.UTC,
+                    'Date.constructor': () => new Date(),
+                    'Date.constructor$1': (v) => new Date(v),
+                    'Date.constructor$7': (y, m, d, h, mi, s, ms) => new Date(y, m, d, h, mi, s, ms),
+                    'Date.getDate': (d) => d.getDate(),
+                    'Date.getDay': (d) => d.getDay(),
+                    'Date.getFullYear': (d) => d.getFullYear(),
+                    'Date.getHours': (d) => d.getHours(),
+                    'Date.getMilliseconds': (d) => d.getMilliseconds(),
+                    'Date.getMinutes': (d) => d.getMinutes(),
+                    'Date.getMonth': (d) => d.getMonth(),
+                    'Date.getSeconds': (d) => d.getSeconds(),
+                    'Date.getTime': (d) => d.getTime(),
+                    'Date.getTimezoneOffset': (d) => d.getTimezoneOffset(),
+                    'Date.getUTCDate': (d) => d.getUTCDate(),
+                    'Date.getUTCFullYear': (d) => d.getUTCFullYear(),
+                    'Date.getUTCHours': (d) => d.getUTCHours(),
+                    'Date.getUTCMinutes': (d) => d.getUTCMinutes(),
+                    'Date.getUTCMonth': (d) => d.getUTCMonth(),
+                    'Date.getUTCSeconds': (d) => d.getUTCSeconds(),
+                    'Date.now': Date.now,
+                    'Date.parse': Date.parse,
+                    'Date.setDate$1': (d, v) => d.setDate(v),
+                    'Date.setFullYear$1': (d, v) => d.setFullYear(v),
+                    'Date.setFullYear$3': (d, y, m, day) => d.setFullYear(y, m, day),
+                    'Date.setHours$1': (d, v) => d.setHours(v),
+                    'Date.setHours$4': (d, h, m, s, ms) => d.setHours(h, m, s, ms),
+                    'Date.setMinutes$1': (d, v) => d.setMinutes(v),
+                    'Date.setMonth$1': (d, v) => d.setMonth(v),
+                    'Date.setSeconds$1': (d, v) => d.setSeconds(v),
+                    'Date.setTime$1': (d, v) => d.setTime(v),
+                    'Date.toLocaleString': (d) => d.toLocaleString(),
+
+                    // --- RegExp ---
+                    'RegExp.constructor$1': (p) => new RegExp(p),
+                    'RegExp.constructor$2': (p, f) => new RegExp(p, f),
+                    'RegExp.exec$1': (r, s) => r.exec(s),
+                    'RegExp.test$1': (r, s) => r.test(s),
+                    'RegExpResult.at$1': (r, i) => r[i],
+                    'get RegExpResult.index': (r) => r.index,
+                    'get RegExpResult.length': (r) => r.length,
+                    'set RegExp.lastIndex': (r, v) => { r.lastIndex = v; },
+
+                    // --- String operations ---
+                    'string.indexOf$1': (s, sub) => s.indexOf(sub),
+                    'string.indexOf$2': (s, sub, from) => s.indexOf(sub, from),
+                    'string.lastIndexOf$1': (s, sub) => s.lastIndexOf(sub),
+                    'string.lastIndexOf$2': (s, sub, from) => s.lastIndexOf(sub, from),
+                    'string.repeat$1': (s, n) => s.repeat(n),
+                    'string.replace$2': (s, re, rep) => s.replace(re, rep),
+                    'string.split$1': (s, sep) => s.split(sep),
+                    'string.toLocaleLowerCase': (s) => s.toLocaleLowerCase(),
+                    'string.toLocaleUpperCase': (s) => s.toLocaleUpperCase(),
+                    'string.toLowerCase': (s) => s.toLowerCase(),
+                    'string.toUpperCase': (s) => s.toUpperCase(),
+
+                    // --- Global functions ---
+                    'alert': (msg) => alert(msg),
+                    'atob': (s) => atob(s),
+                    'btoa': (s) => btoa(s),
+                    'parseFloat': parseFloat,
+                    'performance.now': () => performance.now(),
+
+                    // --- goog.math.Long (64-bit integer) ---
+                    'goog.math.Long.fromBits': (low, high) => Long.fromBits(low, high),
+                    'goog.math.Long.getHighBits': (l) => l.getHighBits(),
+                    'goog.math.Long.getLowBits': (l) => l.getLowBits(),
+
+                    // --- j2wasm JRE utils ---
+                    'j2wasm.EqualityUtils.isSame': (a, b) => Object.is(a, b) || (a == null && b == null),
+                    'j2wasm.ExceptionUtils.setJavaThrowable': (error, throwable) => {
+                        if (error instanceof Object) { try { error['__j2wasm$exception'] = throwable; } catch(e) {} }
+                    },
+                    'j2wasm.ExceptionUtils.getJavaThrowable': (error) => error?.['__j2wasm$exception'] ?? null,
+                    'j2wasm.ExceptionUtils.isError': (obj) => obj instanceof Error,
+                    'j2wasm.ConsoleUtils.log': (level, message) => console[level](message),
+                    'j2wasm.ArrayUtils.getArrayLength': (arr) => arr.length,
+                    'j2wasm.ArrayUtils.getArrayAt': (arr, i) => arr[i],
+                    'j2wasm.ArrayUtils.setArrayAt': (arr, i, v) => { arr[i] = v; },
+                    'j2wasm.CharUtils.charToLowerCase': (v) => String.fromCharCode(v).toLowerCase().charCodeAt(0),
+                    'j2wasm.CharUtils.charToUpperCase': (v) => String.fromCharCode(v).toUpperCase().charCodeAt(0),
+                    'j2wasm.CharUtils.codePointToLowerCase': (v) => String.fromCodePoint(v).toLowerCase().codePointAt(0),
+                    'j2wasm.CharUtils.codePointToUpperCase': (v) => String.fromCodePoint(v).toUpperCase().codePointAt(0),
+                    'j2wasm.DoubleUtils.isValidDouble': (s) => /^\s*[+-]?(NaN|Infinity|((\d+\.?\d*)|(\.\d+))([eE][+-]?\d+)?[dDfF]?)\s*$/.test(s),
+                    'j2wasm.DoubleUtils.dmod': (x, y) => x % y,
+                    'j2wasm.StringUtils.generateClassName': () => 'Class$obf_' + (++_nextClassId),
+                    'j2wasm.StringUtils.equalsIgnoreCase': (a, b) => a.toLowerCase() === b.toLowerCase(),
+                    'j2wasm.StringUtils.compareToIgnoreCase': (a, b) => { a = a.toLowerCase(); b = b.toLowerCase(); return a === b ? 0 : (a < b ? -1 : 1); },
+                    'j2wasm.JsInteropRuntime.bindJsFunction': (fn, adapter) => { const f = fn.bind(null, adapter); f['__j2wasm$adaptor'] = adapter; return f; },
+                    'j2wasm.JsInteropRuntime.getAdaptor': (fn) => fn['__j2wasm$adaptor'] || null,
+                    'j2wasm.JsInteropRuntime.setAdaptor': (fn, adapter) => { fn['__j2wasm$adaptor'] = adapter; },
+                    'j2wasm.JsInteropRuntime.typeOf': (x) => {
+                        if (x == null) return 0;
+                        switch (typeof x) {
+                            case 'string': return 1; case 'boolean': return 2;
+                            case 'number': return 3; case 'function': return 5;
+                            default: return x instanceof Long ? 4 : 6;
+                        }
+                    },
+
+                    // --- JsBridge callbacks ---
+                    'wasmLog': wasmLog,
+                    'wasmSetElement': wasmSetElement,
+                    'wasmNotify': wasmNotify,
+
+                    // --- DOM API bindings ---
+                    'get document': () => document,
+                    'get Document.body': (doc) => doc.body,
+                    'Document.constructor': () => document,
+                    'Document.createElement$1': (doc, tag) => doc.createElement(tag),
+                    'Document.getElementById$1': (doc, id) => doc.getElementById(id),
+                    'Window.constructor': () => window,
+                    'Element.constructor': () => document.createElement('div'),
+                    'Element.appendChild$1': (el, child) => el.appendChild(child),
+                    'Element.setAttribute$2': (el, name, val) => el.setAttribute(name, val),
+                    'get Element.style': (el) => el.style,
+                    'get Element.innerText': (el) => el.innerText,
+                    'get Element.innerHTML': (el) => el.innerHTML,
+                    'set Element.innerText': (el, text) => { el.innerText = text; },
+                    'set Element.innerHTML': (el, html) => { el.innerHTML = html; },
+                    'CSSStyleDeclaration.constructor': () => document.createElement('div').style,
+                    'set CSSStyleDeclaration.color': (s, v) => { s.color = v; },
+                    'set CSSStyleDeclaration.backgroundColor': (s, v) => { s.backgroundColor = v; },
+                    'set CSSStyleDeclaration.fontSize': (s, v) => { s.fontSize = v; },
+                    'set CSSStyleDeclaration.padding': (s, v) => { s.padding = v; },
+                    'set CSSStyleDeclaration.border': (s, v) => { s.border = v; },
+                    'set CSSStyleDeclaration.borderRadius': (s, v) => { s.borderRadius = v; },
+                    'set CSSStyleDeclaration.marginTop': (s, v) => { s.marginTop = v; },
+                }
+            };
+        }
+
+        // --- Load WASM module ---
+        async function loadWasm() {
+            const statusEl = document.getElementById('status');
+            wasmConsoleEl = document.getElementById('wasm-console');
+            try {
+                const wasmPath = './wasm-jsinterop-sample/wasm-jsinterop-sample.wasm';
+                const importObj = getWasmImports();
+                const compileOpts = { builtins: ['js-string'], importedStringConstants: "'" };
+                const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmPath), importObj, compileOpts);
+                wasm = instance.exports;
+                const fns = Object.keys(wasm).filter(k => typeof wasm[k] === 'function');
+                statusEl.textContent = 'WASM loaded. Exports: ' + fns.join(', ');
+                statusEl.className = 'ready';
+                document.getElementById('app').style.display = '';
+            } catch (e) {
+                statusEl.textContent = 'Failed to load WASM: ' + e.message;
+                statusEl.className = 'error';
+                console.error(e);
+            }
+        }
+
+        // --- JS implementations for benchmarks ---
+        function jsSortArray(size) {
+            const arr = new Array(size);
+            for (let i = 0; i < size; i++) arr[i] = size - i;
+            arr.sort((a, b) => a - b);
+            return arr[0];
+        }
+
+        function jsComputePrimes(limit) {
+            const sieve = new Uint8Array(limit + 1).fill(1);
+            sieve[0] = sieve[1] = 0;
+            for (let i = 2; i * i <= limit; i++) {
+                if (sieve[i]) {
+                    for (let j = i * i; j <= limit; j += i) sieve[j] = 0;
+                }
+            }
+            let count = 0;
+            for (let i = 0; i <= limit; i++) if (sieve[i]) count++;
+            return count;
+        }
+
+        // --- UI handlers ---
+        window.runCalc = function(op) {
+            const a = parseInt(document.getElementById('calc-a').value);
+            const b = parseInt(document.getElementById('calc-b').value);
+            const result = wasm[op](a, b);
+            document.getElementById('calc-result').innerHTML =
+                `<span class="label">WASM ${op}(${a}, ${b}) =</span> <span class="wasm">${result}</span>`;
+        };
+
+        window.runCalcN = function(op) {
+            const n = parseInt(document.getElementById('calc-n').value);
+            const result = wasm[op](n);
+            document.getElementById('calc-result').innerHTML =
+                `<span class="label">WASM ${op}(${n}) =</span> <span class="wasm">${result}</span>`;
+        };
+
+        window.runAddWithLog = function() {
+            const a = parseInt(document.getElementById('cb-a').value);
+            const b = parseInt(document.getElementById('cb-b').value);
+            wasm.addWithLog(a, b);
+        };
+
+        window.runFibSteps = function() {
+            const n = parseInt(document.getElementById('cb-n').value);
+            wasm.fibonacciWithSteps(n);
+        };
+
+        window.runPrimesProgress = function() {
+            const limit = parseInt(document.getElementById('cb-limit').value);
+            wasm.countPrimesWithProgress(limit);
+        };
+
+        window.runCreateElements = function() {
+            const count = parseInt(document.getElementById('dom-count').value);
+            wasm.createElements(count);
+        };
+
+        window.runUpdateElement = function() {
+            const value = parseInt(document.getElementById('dom-value-input').value);
+            wasm.updateElement(value);
+        };
+
+        window.runClearContainer = function() {
+            wasm.clearContainer();
+        };
+
+        window.runBench = function(type) {
+            const size = parseInt(document.getElementById('bench-size').value);
+            const el = document.getElementById('bench-result');
+            el.innerHTML = '<span class="label">Running...</span>';
+
+            requestAnimationFrame(() => {
+                let wasmTime, jsTime, wasmResult, jsResult;
+
+                if (type === 'sort') {
+                    const t0 = performance.now();
+                    wasmResult = Number(wasm.sortArray(size));
+                    wasmTime = performance.now() - t0;
+                    const t1 = performance.now();
+                    jsResult = jsSortArray(size);
+                    jsTime = performance.now() - t1;
+                } else {
+                    const t0 = performance.now();
+                    wasmResult = Number(wasm.computePrimes(size));
+                    wasmTime = performance.now() - t0;
+                    const t1 = performance.now();
+                    jsResult = jsComputePrimes(size);
+                    jsTime = performance.now() - t1;
+                }
+
+                const maxTime = Math.max(wasmTime, jsTime, 0.01);
+                const label = type === 'sort' ? `Sort ${size} elements` : `Primes up to ${size}`;
+                const match = wasmResult === jsResult;
+
+                el.innerHTML =
+                    `<span class="label">${label} (${match ? '<span class="match">match</span>' : '<span class="mismatch">mismatch</span>'} = ${wasmResult})</span>\n\n` +
+                    `WASM: ${wasmTime.toFixed(2)} ms\n` +
+                    `<div class="benchmark-bar wasm-bar" style="width:${(wasmTime/maxTime*100).toFixed(0)}%">${wasmTime.toFixed(2)} ms</div>` +
+                    `JS:   ${jsTime.toFixed(2)} ms\n` +
+                    `<div class="benchmark-bar js-bar" style="width:${(jsTime/maxTime*100).toFixed(0)}%">${jsTime.toFixed(2)} ms</div>` +
+                    `\n<span class="label">${(jsTime/wasmTime).toFixed(2)}x ${jsTime > wasmTime ? 'faster' : 'slower'}</span>`;
+            });
+        };
+
+        loadWasm();
+    </script>
+</body>
+</html>

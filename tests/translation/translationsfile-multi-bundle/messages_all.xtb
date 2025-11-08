@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<translations>
+<translationbundle lang="cz">
+<translation id="5254056492295719048" key="MSG_SOMETHING_HAPPENED">Asi se něco stalo!</translation>
+</translationbundle>
+<translationbundle lang="de">
+<translation id="5254056492295719048" key="MSG_SOMETHING_HAPPENED">Ich schätze, es ist etwas passiert!</translation>
+</translationbundle>
+<translationbundle lang="fr">
+<translation id="5254056492295719048" key="MSG_SOMETHING_HAPPENED">Je suppose qu'il s'est passé quelque chose !</translation>
+</translationbundle>
+</translations>

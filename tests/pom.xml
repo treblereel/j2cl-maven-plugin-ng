@@ -4,12 +4,43 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.example</groupId>
+        <groupId>org.treblereel.j2cl.plugin</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>0.24</version>
     </parent>
 
-    <artifactId>tests</artifactId>
+    <groupId>org.treblereel.j2cl.plugin.tests</groupId>
+    <artifactId>j2cl-plugin-tests</artifactId>
+    <packaging>pom</packaging>
+    <name>J2CL Plugin Integration Tests</name>
+    <description>Integration test suite for j2cl-maven-plugin</description>
+
+    <modules>
+        <module>multi-module-application</module>
+        <module>simple-htmlunit-test</module>
+        <module>failing-htmlunit-test</module>
+        <module>multiple-test-packages</module>
+        <module>java17-features</module>
+        <module>java-assertions</module>
+        <module>top-level-source-file</module>
+        <module>translation</module>
+        <module>static-resources</module>
+        <module>annotation-processor-in-reactor</module>
+        <module>annotation-processor-in-reactor-args</module>
+        <module>dependency-replacements</module>
+        <module>elemental2-project</module>
+        <module>hello-world-gwt-super-source</module>
+        <module>hello-world-reactor</module>
+        <module>hello-world-single</module>
+        <module>hello-world-super-source</module>
+        <module>hello-world-web-components</module>
+        <module>issue-41</module>
+        <module>transitive-dependencies</module>
+        <module>wasm-hello-world</module>
+        <module>wasm-simple-test</module>
+        <module>wasm-multi-module</module>
+        <module>re2j-project</module>
+    </modules>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -17,30 +48,59 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.google.elemental2</groupId>
-            <artifactId>elemental2-dom</artifactId>
-            <version>1.3.2</version>
-            <classifier>sources</classifier>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.example</groupId>
-                <artifactId>j2cl-maven-plugin</artifactId>
-                <version>1.0-SNAPSHOT</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.elemental2</groupId>
+                <artifactId>elemental2-dom</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.elemental2</groupId>
+                <artifactId>elemental2-core</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.elemental2</groupId>
+                <artifactId>elemental2-promise</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl.processors</groupId>
+                <artifactId>annotations</artifactId>
+                <version>0.9</version>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl.processors</groupId>
+                <artifactId>processors</artifactId>
+                <scope>provided</scope>
+                <version>0.9</version>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl</groupId>
+                <artifactId>junit-annotations</artifactId>
+                <version>v20260906-1</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl</groupId>
+                <artifactId>junit-emul</artifactId>
+                <version>v20260906-1</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl</groupId>
+                <artifactId>gwttestcase-emul</artifactId>
+                <version>v20260906-1</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.treblereel.j2cl</groupId>
+                <artifactId>junit-runtime</artifactId>
+                <version>v20260906-1</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
 </project>
