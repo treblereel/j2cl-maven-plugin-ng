@@ -20,9 +20,13 @@ import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
 import org.eclipse.aether.resolution.ArtifactResult;
+import org.eclipse.aether.util.artifact.JavaScopes;
 import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
 import org.example.model.Dependency;
+import org.example.model.Project;
+import org.example.task.ByteCodeTask;
+import org.example.task.TaskInput;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -36,53 +40,51 @@ import java.util.Stack;
 )
 public class HelloMojo extends AbstractMojo {
 
-  @Parameter(property = "sayhello.name", defaultValue = "World")
-  private String name;
+    @Parameter(property = "sayhello.name", defaultValue = "World")
+    private String name;
 
-  @Parameter(defaultValue = "${project}", readonly = true, required = true)
-  private MavenProject project;
+    @Parameter(defaultValue = "${project}", readonly = true, required = true)
+    private MavenProject project;
 
-  @Parameter(defaultValue = "${repositorySystemSession}", readonly = true, required = true)
-  private RepositorySystemSession repoSession;
+    @Parameter(defaultValue = "${repositorySystemSession}", readonly = true, required = true)
+    private RepositorySystemSession repoSession;
 
-  @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
-  private java.util.List<RemoteRepository> remoteRepos;
+    @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
+    private java.util.List<RemoteRepository> remoteRepos;
 
-  @Parameter(defaultValue = "${session}", readonly = true, required = true)
-  private MavenSession session;
+    @Parameter(defaultValue = "${session}", readonly = true, required = true)
+    private MavenSession session;
 
-  @Component
-  private RepositorySystem repoSystem;
+    @Component
+    private RepositorySystem repoSystem;
 
-  @Override
-  public void execute() throws MojoExecutionException {
-    getLog().info("👋 Hello, " + name + "!");
-
-    BuildContext buildContext = new BuildContext(new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog()));
-
-
-    try {
-      ArtifactResult artifactResult = repoSystem.resolveArtifact(repoSession, new ArtifactRequest()
-              .setArtifact(new DefaultArtifact("org.apache.commons:commons-lang3:3.12.0"))
-              .setRepositories(remoteRepos)
-      );
+    @Override
+    public void execute() throws MojoExecutionException {
+        getLog().info("👋 Hello, " + name + "!");
+        ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog());
+        BuildContext buildContext = new BuildContext(project, artifactResolver);
 
 
+        try {
+            ArtifactResult artifactResult = repoSystem.resolveArtifact(repoSession, new ArtifactRequest()
+                    .setArtifact(new DefaultArtifact("org.apache.commons:commons-lang3:3.12.0"))
+                    .setRepositories(remoteRepos)
+            );
 
 
-    } catch (ArtifactResolutionException e) {
-      throw new RuntimeException(e);
-    }
+        } catch (ArtifactResolutionException e) {
+            throw new RuntimeException(e);
+        }
 
-    project.getDependencies().stream().forEach(dependency -> {
-      getLog().info("Dependency: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
-      try {
-        printTransitiveDeps(dependency);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+        project.getDependencies().stream().forEach(dependency -> {
+            getLog().info("Dependency: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
+            try {
+                printTransitiveDeps(dependency);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-    });
+        });
 
 
 /*    project.getArtifacts().forEach(a -> {
@@ -107,44 +109,50 @@ public class HelloMojo extends AbstractMojo {
 
     }*/
 
+        Project project = new Project(this.project, artifactResolver);
 
 
-    resolveSources("org.apache.commons", "commons-lang3", "3.12.0");
-  }
+        try {
+            new ByteCodeTask(project, buildContext).runTask().join();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-  private void printTransitiveDeps(org.apache.maven.model.Dependency dep) throws Exception {
-    String coords = String.format("%s:%s:%s", dep.getGroupId(), dep.getArtifactId(), dep.getVersion());
-    var artifact = new DefaultArtifact(coords);
-
-
-    var request = new CollectRequest();
-    request.setRoot(new org.eclipse.aether.graph.Dependency(artifact, dep.getScope()));
-    request.setRepositories(remoteRepos);
-
-    DependencyNode root = repoSystem.collectDependencies(repoSession, request).getRoot();
-
-    getLog().info("Dependencies for " + coords + ":");
-    root.getChildren().forEach(child -> {
-      var cdep = child.getDependency().getArtifact();
-      getLog().info("  ↳ " + cdep.getGroupId() + ":" + cdep.getArtifactId() + ":" + cdep.getVersion());
-    });
-  }
-
-  private void resolveSources(String g, String a, String v) {
-    Artifact sources = new DefaultArtifact(g, a, "sources", "jar", v);
-
-    ArtifactRequest req = new ArtifactRequest();
-    req.setArtifact(sources);
-    req.setRepositories(remoteRepos);
-
-    try {
-      ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
-      res.getArtifact().getFile();
-
-      File file = res.getArtifact().getFile();
-      getLog().info("Sources resolved: " + (file != null ? file.getAbsolutePath() : "(no file)"));
-    } catch (Exception e) {
-      getLog().warn("No sources found for " + g + ":" + a + ":" + v + " (" + e.getClass().getSimpleName() + ")");
+        //resolveSources("org.apache.commons", "commons-lang3", "3.12.0");
     }
-  }
+
+    private void printTransitiveDeps(org.apache.maven.model.Dependency dep) throws Exception {
+        String coords = String.format("%s:%s:%s", dep.getGroupId(), dep.getArtifactId(), dep.getVersion());
+        var artifact = new DefaultArtifact(coords);
+
+        var request = new CollectRequest();
+        request.setRoot(new org.eclipse.aether.graph.Dependency(artifact, dep.getScope()));
+        request.setRepositories(remoteRepos);
+
+        DependencyNode root = repoSystem.collectDependencies(repoSession, request).getRoot();
+
+        getLog().info("Dependencies for " + coords + ":");
+        root.getChildren().forEach(child -> {
+            var cdep = child.getDependency().getArtifact();
+            getLog().info("  ↳ " + cdep.getGroupId() + ":" + cdep.getArtifactId() + ":" + cdep.getVersion());
+        });
+    }
+
+    private void resolveSources(String g, String a, String v) {
+        Artifact sources = new DefaultArtifact(g, a, "sources", "jar", v);
+
+        ArtifactRequest req = new ArtifactRequest();
+        req.setArtifact(sources);
+        req.setRepositories(remoteRepos);
+
+        try {
+            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
+            res.getArtifact().getFile();
+
+            File file = res.getArtifact().getFile();
+            getLog().info("Sources resolved: " + (file != null ? file.getAbsolutePath() : "(no file)"));
+        } catch (Exception e) {
+            getLog().warn("No sources found for " + g + ":" + a + ":" + v + " (" + e.getClass().getSimpleName() + ")");
+        }
+    }
 }
