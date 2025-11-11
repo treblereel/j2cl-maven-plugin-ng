@@ -21,6 +21,7 @@ import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
 import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.util.artifact.JavaScopes;
+import org.example.config.BuildConfig;
 import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
 import org.example.model.Dependency;
@@ -30,6 +31,7 @@ import org.example.task.TaskInput;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Stack;
 
@@ -58,11 +60,22 @@ public class HelloMojo extends AbstractMojo {
     @Component
     private RepositorySystem repoSystem;
 
+    @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
+    protected String jspecify;
+
     @Override
     public void execute() throws MojoExecutionException {
         getLog().info("👋 Hello, " + name + "!");
         ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog());
-        BuildContext buildContext = new BuildContext(project, artifactResolver);
+
+        List<File> extraClasspath = Arrays.asList(
+                getFileWithMavenCoords(jspecify)
+        );
+
+
+        BuildConfig buildConfig = new BuildConfig(extraClasspath);
+
+        BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver);
 
 
         try {

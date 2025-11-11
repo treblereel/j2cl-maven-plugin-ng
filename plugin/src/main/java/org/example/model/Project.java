@@ -21,7 +21,7 @@ public class Project extends Dependency {
     }
 
     public boolean isSourceMapped() {
-        return false;
+        return true;
     }
 
     @Override

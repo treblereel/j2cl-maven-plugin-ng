@@ -4,6 +4,7 @@ import org.example.context.BuildContext;
 import org.example.model.Dependency;
 
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -39,41 +40,69 @@ public abstract class TaskInput {
     public abstract Runnable process();
 
     protected String key() {
-        return String.format("%s-%s", dep.key(), getOutputTypes());
+        return String.format("%s-%s", dep.key(), getOutputTypes().getName());
     }
 
     protected void insureOutputDirectoryExists() {
-        buildContext.getOutputDirectory().mkdirs();
-        if (!buildContext.getOutputDirectory().exists()) {
+        buildContext.getOutputDirectory().toFile().mkdirs();
+        if (!buildContext.getOutputDirectory().toFile().exists()) {
             throw new RuntimeException(String.format("Unable to create output directory %s", buildContext.getOutputDirectory()));
         }
-        Path taskOutputPath = buildContext.getOutputDirectory().toPath().resolve(key());
+        Path taskOutputPath = buildContext.getOutputDirectory().resolve(dep.key());
         taskOutputPath.toFile().mkdirs();
         if (!taskOutputPath.toFile().exists()) {
             throw new RuntimeException(String.format("Unable to create task output directory %s", taskOutputPath));
         }
     }
 
-    protected List<Path> input(Dependency dependencies, OutputTypes outputTypes) {
+    protected TaskOutput input(Dependency dependencies, OutputTypes outputTypes) {
         return input(List.of(dependencies), outputTypes);
     }
 
-    protected List<Path> input(List<Dependency> dependencies, OutputTypes outputTypes) {
+    protected TaskOutput input(List<Dependency> dependencies, OutputTypes outputTypes) {
         List<CompletableFuture<Path>> tasks = dependencies.stream()
                 .map(d -> TaskInputFactory.create(d, buildContext, outputTypes).runTask())
                 .toList();
         try {
             CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).join();
-            return tasks.stream()
+            return new TaskOutput(tasks.stream()
                     .map(CompletableFuture::join)
-                    .toList();
+                    .toList());
         } catch (CompletionException e) {
             throw new RuntimeException("Input tasks failed", e.getCause());
         }
     }
 
+    protected static PathMatcher withSuffix(String suffix) {
+        return new PathMatcher() {
+            @Override
+            public boolean matches(Path p) {
+                return p.getFileName().toString().endsWith(suffix);
+            }
+
+            @Override
+            public String toString() {
+                return "Filenames that end with " + suffix;
+            }
+        };
+    }
+
+    protected static PathMatcher filename(String filename) {
+        return new PathMatcher() {
+            @Override
+            public boolean matches(Path p) {
+                return p.getFileName().equals(Path.of(filename));
+            }
+
+            @Override
+            public String toString() {
+                return "Filenames that equal " + filename;
+            }
+        };
+    }
+
     protected Path outputPath() {
-        return buildContext.getOutputDirectory().toPath().resolve(key());
+        return buildContext.getOutputDirectory().resolve(dep.key()).resolve(getOutputTypes().getName());
     }
 
 }

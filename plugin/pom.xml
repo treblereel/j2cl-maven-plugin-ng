@@ -52,5 +52,10 @@
             <version>1.9.20</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.turbine</groupId>
+            <artifactId>turbine</artifactId>
+            <version>0.11.0</version>
+        </dependency>
     </dependencies>
 </project>

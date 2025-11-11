@@ -10,8 +10,12 @@ import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
 import org.eclipse.aether.graph.DependencyNode;
 import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.resolution.ArtifactRequest;
+import org.eclipse.aether.resolution.ArtifactResolutionException;
+import org.eclipse.aether.resolution.ArtifactResult;
 import org.example.model.Dependency;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -84,5 +88,23 @@ public class ArtifactResolver {
             }
         }
         return false;
+    }
+
+    public File resolveArtifact(Artifact artifact) {
+        ArtifactRequest req = new ArtifactRequest();
+        req.setArtifact(artifact);
+        req.setRepositories(remoteRepos);
+
+        try {
+            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
+            Artifact resolved = res.getArtifact();
+            File file = resolved.getFile();
+            if (file == null || !file.isFile()) {
+                throw new IllegalStateException("Resolved artifact has no file: " + resolved);
+            }
+            return file;
+        } catch (ArtifactResolutionException e) {
+            throw new RuntimeException("Failed to resolve " + artifact, e);
+        }
     }
 }
