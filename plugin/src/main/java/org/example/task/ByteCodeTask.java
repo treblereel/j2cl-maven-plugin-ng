@@ -59,7 +59,7 @@ public class ByteCodeTask extends TaskInput {
                               .filter(TURBINE_OUTPUT)
                               .files()
                               .stream()
-                              .map(f -> f.getSourcePath().toFile().toString()))
+                              .map(f -> f.getAbsolutePath().toFile().toString()))
               .collect(Collectors.toSet());
 
       File output = new File(outputPath().toFile(), "output.jar");
@@ -70,12 +70,12 @@ public class ByteCodeTask extends TaskInput {
                 .filter(TURBINE_OUTPUT)
                 .files()
                 .stream()
-                .map(f -> f.getSourcePath().toFile().toString()).forEach(s -> System.out.println("Classpath entry: " + s));
+                .map(f -> f.getAbsolutePath().toFile().toString()).forEach(s -> System.out.println("Classpath entry: " + s));
 
         Main.Result result = Main.compile(
                 TurbineOptions.builder()
                         //.setDirectJars()
-                        .setSources(ImmutableList.copyOf(self.files().stream().map(f -> f.getSourcePath().toFile().toString()).toList()))
+                        .setSources(ImmutableList.copyOf(self.files().stream().map(f -> f.getAbsolutePath().toFile().toString()).toList()))
                         .setOutput(output.toString())
                         .setClassPath(ImmutableList.copyOf(deps))
                         .setLanguageVersion(LanguageVersion.fromJavacopts(

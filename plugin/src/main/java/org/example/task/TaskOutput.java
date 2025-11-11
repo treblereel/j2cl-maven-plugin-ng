@@ -13,15 +13,15 @@ import java.util.stream.Stream;
 
 public class TaskOutput {
 
-  private final List<Path> output;
+    private final List<Path> output;
 
-  public TaskOutput(List<Path> output) {
-    this.output = output;
-  }
+    public TaskOutput(List<Path> output) {
+        this.output = output;
+    }
 
-  public TaskOutput filter(PathMatcher... filters) {
-    return new FilteredOutput(this, filters);
-  }
+    public TaskOutput filter(PathMatcher... filters) {
+        return new FilteredOutput(this, filters);
+    }
 
     public List<FileEntry> files() {
         List<FileEntry> result = new ArrayList<>();
@@ -29,38 +29,38 @@ public class TaskOutput {
             if (!Files.exists(outputPath)) continue;
             try (Stream<Path> stream = Files.walk(outputPath)) {
                 stream.filter(Files::isRegularFile)
-                        .map(p -> new FileEntry(p, outputPath, outputPath))
+                        .map(p -> new FileEntry(outputPath.relativize(p), p, outputPath))
                         .forEach(result::add);
             } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                throw new RuntimeException(e);
             }
         }
         return result;
     }
 
-  protected class FilteredOutput extends TaskOutput {
+    protected class FilteredOutput extends TaskOutput {
 
-    private final PathMatcher[] filters;
-    private final TaskOutput wrapped;
+        private final PathMatcher[] filters;
+        private final TaskOutput wrapped;
 
-    public FilteredOutput(TaskOutput output, PathMatcher... filters) {
-      super(output.output);
-      this.wrapped = output;
-      this.filters = filters;
+        public FilteredOutput(TaskOutput output, PathMatcher... filters) {
+            super(output.output);
+            this.wrapped = output;
+            this.filters = filters;
+        }
+
+        public TaskOutput filter(PathMatcher... filters) {
+            HashSet<PathMatcher> allMatchers = new HashSet<>(Arrays.asList(this.filters));
+            allMatchers.addAll(Arrays.asList(filters));
+            return new FilteredOutput(wrapped, allMatchers.toArray(filters));
+        }
+
+        public List<FileEntry> files() {
+            List<FileEntry> files = super.files();
+            return files.stream()
+                    .filter(entry -> Files.isRegularFile(entry.getAbsolutePath()))
+                    .filter(entry -> Arrays.stream(filters).anyMatch(f -> f.matches(entry.getSourcePath())))
+                    .toList();
+        }
     }
-
-    public TaskOutput filter(PathMatcher... filters) {
-      HashSet<PathMatcher> allMatchers = new HashSet<>(Arrays.asList(this.filters));
-      allMatchers.addAll(Arrays.asList(filters));
-      return new FilteredOutput(wrapped, allMatchers.toArray(filters));
-    }
-
-    public List<FileEntry> files() {
-      List<FileEntry> files = super.files();
-      return files.stream()
-              .filter(entry -> Files.isRegularFile(entry.getAbsolutePath()))
-              .filter(entry -> Arrays.stream(filters).anyMatch(f -> f.matches(entry.getSourcePath())))
-              .toList();
-    }
-  }
 }

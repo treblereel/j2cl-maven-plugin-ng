@@ -34,19 +34,11 @@ public class StripSourcesTask extends TaskInput {
             TaskOutput bytecode = input(dep, OutputTypes.BYTECODE).filter(JAVA_SOURCES);
             TaskOutput sources = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
 
-            input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).files().stream().forEach(f -> {
-                System.out.println("! " + f.getAbsolutePath());
-            });
-
             List<SourceUtils.FileInfo> files = Stream.concat(bytecode.files().stream(), sources.files().stream())
                     .map(f -> SourceUtils.FileInfo.create(f.getAbsolutePath().toString(), f.getSourcePath().toString()))
                     .toList();
 
-            files.stream().forEach(f -> {
-                System.out.println("? " + f.sourcePath());
-            });
-
-            GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(buildContext.getOutputDirectory().toFile());
+            GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(outputPath().toFile());
             preprocessor.preprocess(files);
         };
     }
