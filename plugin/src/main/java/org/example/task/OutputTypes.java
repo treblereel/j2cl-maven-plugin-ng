@@ -2,7 +2,7 @@ package org.example.task;
 
 public enum OutputTypes {
 
-    UNZIPPED_DEPENDENCIES("unzipped-dependency"),
+    UNZIPPED_DEPENDENCIES("unzipped"),
 
     /**
      * A special output type to indicate to use project's own sources, or

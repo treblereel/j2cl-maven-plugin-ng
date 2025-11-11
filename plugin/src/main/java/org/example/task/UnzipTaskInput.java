@@ -2,12 +2,11 @@ package org.example.task;
 
 import org.example.context.BuildContext;
 import org.example.model.Dependency;
+import org.example.utils.FileUtils;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.concurrent.CompletableFuture;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.zip.ZipFile;
 
 public class UnzipTaskInput extends TaskInput{
@@ -24,14 +23,13 @@ public class UnzipTaskInput extends TaskInput{
     @Override
     public Runnable process() {
         return () -> {
+            insureOutputDirectoryExists();
+            outputPath().toFile().mkdirs();
+            if (!outputPath().toFile().exists()) {
+                throw new RuntimeException(String.format("Unable to create output path %s", outputPath()));
+            }
             if(!dep.isSourceMapped()) {
-                insureOutputDirectoryExists();
-                outputPath().toFile().mkdirs();
-                if (!outputPath().toFile().exists()) {
-                    throw new RuntimeException(String.format("Unable to create output path %s", outputPath()));
-                }
-
-                File jar = dep.resolve();
+                File jar = dep.sourcesJar();
                 try (ZipFile zipFile = new ZipFile(jar)) {
                     zipFile.stream().forEach(entry -> {
                         try {
@@ -51,6 +49,13 @@ public class UnzipTaskInput extends TaskInput{
                     });
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dep.key(), e);
+                }
+            } else {
+                try {
+                    System.out.println("Copying sources from " + dep.sourcesJar() + " to " + outputPath());
+                    FileUtils.copyDirectory(dep.sourcesJar().toPath(), outputPath());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
             }
             System.out.println(String.format("Unzipping %s to %s", key(), buildContext.getOutputDirectory()));

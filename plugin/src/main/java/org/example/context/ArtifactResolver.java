@@ -13,6 +13,7 @@ import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
 import org.eclipse.aether.resolution.ArtifactResult;
+import org.eclipse.aether.util.artifact.SubArtifact;
 import org.example.model.Dependency;
 
 import java.io.File;
@@ -90,7 +91,7 @@ public class ArtifactResolver {
         return false;
     }
 
-    public File resolveArtifact(Artifact artifact) {
+    public File resolveByteCodeJar(Artifact artifact) {
         ArtifactRequest req = new ArtifactRequest();
         req.setArtifact(artifact);
         req.setRepositories(remoteRepos);
@@ -105,6 +106,27 @@ public class ArtifactResolver {
             return file;
         } catch (ArtifactResolutionException e) {
             throw new RuntimeException("Failed to resolve " + artifact, e);
+        }
+    }
+
+    public File resolveSourcesJar(Artifact artifact) {
+        Artifact target = ("sources".equals(artifact.getClassifier()) && "jar".equals(artifact.getExtension()))
+                ? artifact
+                : new SubArtifact(artifact, "sources", "jar");
+
+        ArtifactRequest req = new ArtifactRequest()
+                .setArtifact(target)
+                .setRepositories(remoteRepos);
+
+        try {
+            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
+            File file = res.getArtifact().getFile();
+            if (file == null || !file.isFile()) {
+                throw new IllegalStateException("Resolved sources has no file: " + res.getArtifact());
+            }
+            return file;
+        } catch (ArtifactResolutionException e) {
+            throw new RuntimeException("Failed to resolve sources for " + artifact, e);
         }
     }
 }

@@ -62,17 +62,7 @@ public class ByteCodeTask extends TaskInput {
                               .map(f -> f.getSourcePath().toFile().toString()))
               .collect(Collectors.toSet());
 
-      //
-      // input(dep.getDependencies(), OutputTypes.BYTECODE).filter(JAVA_SOURCES).files().forEach(f -> {
-      //System.out.println(String.format("Found source file: %s", f.getSourcePath()));
-      //});
-
-      //input(dep.getDependencies(), OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_BYTECODE).files().forEach(f -> {
-      //System.out.println(String.format("Found bytecode file: %s", f.getSourcePath()));
-      //});
-
       File output = new File(outputPath().toFile(), "output.jar");
-
 
       try {
 
@@ -91,14 +81,12 @@ public class ByteCodeTask extends TaskInput {
                         .setLanguageVersion(LanguageVersion.fromJavacopts(
                                 ImmutableList.of("-source", "21", "-target", "21", "--release", "21")))
                         //TODO https://github.com/Vertispan/j2clmavenplugin/issues/181
-                        .setReducedClasspathMode(TurbineOptions.ReducedClasspathMode.JAVABUILDER_REDUCED)
+                        //.setReducedClasspathMode(TurbineOptions.ReducedClasspathMode.JAVABUILDER_REDUCED)
                         .build());
 
-        System.out.println("turbine finished: " + result);
-        //extractJar(output, resultFolder.toPath(), context);
+        //TODO run APT and write output .java files to sources and resources to sources as well
       } catch (TurbineError e) {
         throw new RuntimeException("Turbine compilation failed at dependency " + dep.key(), e);
-
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

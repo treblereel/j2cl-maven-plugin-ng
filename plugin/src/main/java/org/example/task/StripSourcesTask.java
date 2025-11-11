@@ -1,0 +1,53 @@
+package org.example.task;
+
+import com.google.j2cl.common.SourceUtils;
+import org.example.context.BuildContext;
+import org.example.model.Dependency;
+import org.example.utils.GwtIncompatiblePreprocessor;
+
+import java.nio.file.PathMatcher;
+import java.util.List;
+import java.util.stream.Stream;
+
+public class StripSourcesTask extends TaskInput {
+
+    public static final PathMatcher JAVA_SOURCES = withSuffix(".java");
+
+    public StripSourcesTask(Dependency dep, BuildContext buildContext) {
+        super(dep, buildContext);
+    }
+
+    @Override
+    public OutputTypes getOutputTypes() {
+        return OutputTypes.STRIPPED_SOURCES;
+    }
+
+    @Override
+    public Runnable process() {
+        return () -> {
+            insureOutputDirectoryExists();
+            outputPath().toFile().mkdirs();
+            if (!outputPath().toFile().exists()) {
+                throw new RuntimeException(String.format("Unable to create output path %s", outputPath()));
+            }
+
+            TaskOutput bytecode = input(dep, OutputTypes.BYTECODE).filter(JAVA_SOURCES);
+            TaskOutput sources = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
+
+            input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).files().stream().forEach(f -> {
+                System.out.println("! " + f.getAbsolutePath());
+            });
+
+            List<SourceUtils.FileInfo> files = Stream.concat(bytecode.files().stream(), sources.files().stream())
+                    .map(f -> SourceUtils.FileInfo.create(f.getAbsolutePath().toString(), f.getSourcePath().toString()))
+                    .toList();
+
+            files.stream().forEach(f -> {
+                System.out.println("? " + f.sourcePath());
+            });
+
+            GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(buildContext.getOutputDirectory().toFile());
+            preprocessor.preprocess(files);
+        };
+    }
+}

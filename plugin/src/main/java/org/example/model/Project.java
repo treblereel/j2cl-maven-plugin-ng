@@ -1,6 +1,7 @@
 package org.example.model;
 
 import org.apache.maven.project.MavenProject;
+import org.eclipse.aether.artifact.Artifact;
 import org.example.context.ArtifactResolver;
 
 import java.io.File;
@@ -25,8 +26,13 @@ public class Project extends Dependency {
     }
 
     @Override
-    public File resolve() {
+    public File bytecodeJar() {
         return new File(project.getBasedir(), "target/classes");
+    }
+
+    @Override
+    public File sourcesJar() {
+        return new File(project.getBasedir(), "src/main/java");
     }
 
     public String key() {

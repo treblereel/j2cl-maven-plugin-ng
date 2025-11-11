@@ -27,6 +27,7 @@ import org.example.context.BuildContext;
 import org.example.model.Dependency;
 import org.example.model.Project;
 import org.example.task.ByteCodeTask;
+import org.example.task.StripSourcesTask;
 import org.example.task.TaskInput;
 
 import java.io.File;
@@ -63,13 +64,17 @@ public class HelloMojo extends AbstractMojo {
     @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
     protected String jspecify;
 
+    @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:v20250822-1", required = true)
+    protected String internalAnnotationsJar;
+
     @Override
     public void execute() throws MojoExecutionException {
         getLog().info("👋 Hello, " + name + "!");
         ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog());
 
         List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jspecify)
+                getFileWithMavenCoords(jspecify),
+                getFileWithMavenCoords(internalAnnotationsJar)
         );
 
 
@@ -77,17 +82,6 @@ public class HelloMojo extends AbstractMojo {
 
         BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver);
 
-
-        try {
-            ArtifactResult artifactResult = repoSystem.resolveArtifact(repoSession, new ArtifactRequest()
-                    .setArtifact(new DefaultArtifact("org.apache.commons:commons-lang3:3.12.0"))
-                    .setRepositories(remoteRepos)
-            );
-
-
-        } catch (ArtifactResolutionException e) {
-            throw new RuntimeException(e);
-        }
 
         project.getDependencies().stream().forEach(dependency -> {
             getLog().info("Dependency: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
@@ -99,39 +93,14 @@ public class HelloMojo extends AbstractMojo {
 
         });
 
-
-/*    project.getArtifacts().forEach(a -> {
-      getLog().info(String.format(
-              "%s:%s:%s:%s:%s  [scope=%s] -> %s",
-              a.getGroupId(),
-              a.getArtifactId(),
-              a.getType(),
-              a.getVersion(),
-              a.getClassifier() != null ? a.getClassifier() : "",
-              a.getScope(),
-              a.getFile() != null ? a.getFile().getAbsolutePath() : "(not resolved)"
-      ));
-    });
-
-
-    Stack<Dependency> queue = new Stack<>();
-    Dependency root = new Dependency(project.getGroupId(), project.getArtifactId(), project.getVersion(), project.getPackaging(), "", "");
-    queue.push(root);
-    while (!queue.isEmpty()) {
-      Dependency dep = queue.pop();
-
-    }*/
-
         Project project = new Project(this.project, artifactResolver);
 
 
         try {
-            new ByteCodeTask(project, buildContext).runTask().join();
+            new StripSourcesTask(project, buildContext).runTask().join();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-        //resolveSources("org.apache.commons", "commons-lang3", "3.12.0");
     }
 
     private void printTransitiveDeps(org.apache.maven.model.Dependency dep) throws Exception {
@@ -151,21 +120,15 @@ public class HelloMojo extends AbstractMojo {
         });
     }
 
-    private void resolveSources(String g, String a, String v) {
-        Artifact sources = new DefaultArtifact(g, a, "sources", "jar", v);
-
-        ArtifactRequest req = new ArtifactRequest();
-        req.setArtifact(sources);
-        req.setRepositories(remoteRepos);
+    protected File getFileWithMavenCoords(String coords) throws MojoExecutionException {
+        ArtifactRequest request = new ArtifactRequest()
+                .setRepositories(remoteRepos)
+                .setArtifact(new DefaultArtifact(coords));
 
         try {
-            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
-            res.getArtifact().getFile();
-
-            File file = res.getArtifact().getFile();
-            getLog().info("Sources resolved: " + (file != null ? file.getAbsolutePath() : "(no file)"));
-        } catch (Exception e) {
-            getLog().warn("No sources found for " + g + ":" + a + ":" + v + " (" + e.getClass().getSimpleName() + ")");
+            return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
+        } catch (ArtifactResolutionException e) {
+            throw new MojoExecutionException("Failed to find artifact " + coords, e);
         }
     }
 }

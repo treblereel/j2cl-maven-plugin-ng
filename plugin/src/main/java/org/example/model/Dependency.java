@@ -1,7 +1,6 @@
 package org.example.model;
 
 import org.eclipse.aether.artifact.Artifact;
-import org.eclipse.aether.resolution.ArtifactRequest;
 import org.example.context.ArtifactResolver;
 
 import java.io.File;
@@ -18,13 +17,17 @@ public class Dependency {
         this.artifactResolver = artifactResolver;
     }
 
-    public File resolve() {
+    public File bytecodeJar() {
         Artifact a = dependency.getArtifact();
         if (a.getFile() != null && a.getFile().isFile()) {
             return a.getFile();
         }
 
-        return artifactResolver.resolveArtifact(dependency.getArtifact());
+        return artifactResolver.resolveByteCodeJar(dependency.getArtifact());
+    }
+
+    public File sourcesJar() {
+        return artifactResolver.resolveSourcesJar(dependency.getArtifact());
     }
 
     public List<Dependency> getDependencies() {

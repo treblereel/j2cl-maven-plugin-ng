@@ -1,5 +1,7 @@
 package org.example.task;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -21,20 +23,20 @@ public class TaskOutput {
     return new FilteredOutput(this, filters);
   }
 
-  public List<FileEntry> files() {
-    List<FileEntry> result = new ArrayList<>();
-    for (Path outputPath : output) {
-      try (Stream<Path> asStream = Files.walk(outputPath)) {
-        asStream
-                .filter(Files::isRegularFile)
-                .map(p -> new FileEntry(p, outputPath, outputPath))
-                .forEach(result::add);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+    public List<FileEntry> files() {
+        List<FileEntry> result = new ArrayList<>();
+        for (Path outputPath : output) {
+            if (!Files.exists(outputPath)) continue;
+            try (Stream<Path> stream = Files.walk(outputPath)) {
+                stream.filter(Files::isRegularFile)
+                        .map(p -> new FileEntry(p, outputPath, outputPath))
+                        .forEach(result::add);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        return result;
     }
-    return result;
-  }
 
   protected class FilteredOutput extends TaskOutput {
 
@@ -56,6 +58,7 @@ public class TaskOutput {
     public List<FileEntry> files() {
       List<FileEntry> files = super.files();
       return files.stream()
+              .filter(entry -> Files.isRegularFile(entry.getAbsolutePath()))
               .filter(entry -> Arrays.stream(filters).anyMatch(f -> f.matches(entry.getSourcePath())))
               .toList();
     }
