@@ -1,5 +1,6 @@
 package org.example.model;
 
+import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.artifact.Artifact;
 import org.example.context.ArtifactResolver;
 
@@ -36,6 +37,10 @@ public class Dependency {
 
     public boolean isSourceMapped() {
         return artifactResolver.isInReactor(dependency.getArtifact());
+    }
+
+    public MavenProject asMavenProject() {
+        return artifactResolver.getMavenProject(dependency.getArtifact());
     }
 
     public org.eclipse.aether.graph.Dependency asAetherDependency() {

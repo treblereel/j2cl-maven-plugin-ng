@@ -2,7 +2,9 @@ package org.example;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -61,11 +63,26 @@ public class HelloMojo extends AbstractMojo {
     @Component
     private RepositorySystem repoSystem;
 
+    @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
+    private MojoExecution mojoExecution;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:v20250822-1", required = true)
+    protected String jreJar;
+
     @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
     protected String jspecify;
 
     @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:v20250822-1", required = true)
     protected String internalAnnotationsJar;
+
+    @Parameter(defaultValue = "com.google.jsinterop:jsinterop-annotations:2.1.0", required = true)
+    protected String jsinteropAnnotationsJar;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1", required = true)
+    protected String jsinteropBaseJar;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
+    protected String bootstrapJsZip;
 
     @Override
     public void execute() throws MojoExecutionException {
@@ -73,14 +90,17 @@ public class HelloMojo extends AbstractMojo {
         ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog());
 
         List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jspecify),
-                getFileWithMavenCoords(internalAnnotationsJar)
+                getFileWithMavenCoords(jreJar),
+                getFileWithMavenCoords(jsinteropAnnotationsJar),
+                getFileWithMavenCoords(internalAnnotationsJar),
+                getFileWithMavenCoords(jsinteropBaseJar),
+                getFileWithMavenCoords(jspecify)
         );
 
 
         BuildConfig buildConfig = new BuildConfig(extraClasspath);
 
-        BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver);
+        BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
 
 
         project.getDependencies().stream().forEach(dependency -> {

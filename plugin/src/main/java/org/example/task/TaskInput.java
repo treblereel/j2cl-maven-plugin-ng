@@ -30,14 +30,40 @@ public abstract class TaskInput {
         return tasks.computeIfAbsent(key(), k -> resolve());
     }
 
-
     private CompletableFuture<Path> resolve() {
         return CompletableFuture
-                .runAsync(process(), buildContext.executor())
-                .thenApplyAsync(v -> outputPath(), buildContext.executor());
+                .runAsync(doProcess(), buildContext.executor())
+                .thenApplyAsync(v -> outputPath(), buildContext.executor())
+                .exceptionally(ex -> {
+                    throw new CompletionException("Task " + key() + " failed", ex);
+                });
     }
 
-    public abstract Runnable process();
+    private void beforeProcess() {
+        insureOutputDirectoryExists();
+        outputPath().toFile().mkdirs();
+        if (!outputPath().toFile().exists()) {
+            throw new RuntimeException(String.format("Unable to create output path %s", outputPath()));
+        }
+
+        System.out.println(String.format("Starting  task %s for %s", getOutputTypes().getName(), dep.key()));
+    }
+
+    private void afterProcess(double startTime) {
+        System.out.println(String.format("Completed task %s for %s in %.2f seconds", getOutputTypes().getName(), dep.key(), (System.currentTimeMillis() - startTime) / 1000.0));
+    }
+
+    private Runnable doProcess() {
+        return () -> {
+            double startTime = System.currentTimeMillis();
+            beforeProcess();
+            process();
+            afterProcess(startTime);
+        };
+    }
+
+
+    public abstract void process();
 
     protected String key() {
         return String.format("%s-%s", dep.key(), getOutputTypes().getName());

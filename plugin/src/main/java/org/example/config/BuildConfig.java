@@ -8,13 +8,18 @@ public class BuildConfig implements Config {
 
   private final List<File> extraClasspath;
 
-  public BuildConfig(List<java.io.File> extraClasspath) {
+  public BuildConfig(List<File> extraClasspath) {
     this.extraClasspath = extraClasspath;
   }
 
 
   @Override
-  public List<java.io.File> getExtraClasspath() {
+  public List<File> getExtraClasspath() {
     return extraClasspath;
+  }
+
+  @Override
+  public File getBootstrapClasspath() {
+    return null;
   }
 }

@@ -6,12 +6,14 @@ import org.example.model.Dependency;
 public class TaskInputFactory {
 
 
-    public static TaskInput create(Dependency dep, BuildContext buildContext, OutputTypes outputTypes) {
-        if (outputTypes == OutputTypes.BYTECODE) {
-            return new ByteCodeTask(dep, buildContext);
-        } else if (outputTypes == OutputTypes.UNZIPPED_DEPENDENCIES) {
-            return new UnzipTaskInput(dep, buildContext);
-        }
-        throw new IllegalArgumentException("Unsupported output type: " + outputTypes);
-    }
+  public static TaskInput create(Dependency dep, BuildContext buildContext, OutputTypes outputTypes) {
+    return switch (outputTypes) {
+      case BYTECODE -> new ByteCodeTask(dep, buildContext);
+      case UNZIPPED_DEPENDENCIES -> new UnzipTaskInput(dep, buildContext);
+      case STRIPPED_SOURCES -> new StripSourcesTask(dep, buildContext);
+      case TRANSPILED_JS -> new J2CLTask(dep, buildContext);
+      default -> throw new RuntimeException("Unsupported output type: " + outputTypes);
+    };
+
+  }
 }

@@ -1,6 +1,7 @@
 package org.example.context;
 
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.RepositorySystem;
@@ -71,7 +72,8 @@ public class ArtifactResolver {
         try {
             DependencyNode root = repoSystem.collectDependencies(repoSession, request).getRoot();
             return root.getChildren()
-                    .stream().filter(d -> d.getDependency().getScope() == null || d.getDependency().getScope().equals("compile"))
+                    .stream()
+                    .filter(d -> d.getDependency().getScope() == null || d.getDependency().getScope().equals("compile"))
                     .map(dependencyNode -> new Dependency(dependencyNode.getDependency(), this))
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -89,6 +91,17 @@ public class ArtifactResolver {
             }
         }
         return false;
+    }
+
+    public MavenProject getMavenProject(Artifact artifact) {
+        for (MavenProject project : reactorProjects) {
+            if (project.getGroupId().equals(artifact.getGroupId())
+                    && project.getArtifactId().equals(artifact.getArtifactId())
+                    && project.getVersion().equals(artifact.getVersion())) {
+                return project;
+            }
+        }
+        return null;
     }
 
     public File resolveByteCodeJar(Artifact artifact) {
@@ -127,6 +140,24 @@ public class ArtifactResolver {
             return file;
         } catch (ArtifactResolutionException e) {
             throw new RuntimeException("Failed to resolve sources for " + artifact, e);
+        }
+    }
+
+    /**
+     *
+     * @param coords : expected format is <groupId>:<artifactId>[:<extension>[:<classifier>]]:<version>"
+     * @return a JAR file
+     * @throws MojoExecutionException
+     */
+    public File getJarWithMavenCoords(String coords) throws MojoExecutionException {
+        ArtifactRequest request = new ArtifactRequest()
+                .setRepositories(remoteRepos)
+                .setArtifact(new DefaultArtifact(coords));
+
+        try {
+            return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
+        } catch (ArtifactResolutionException e) {
+            throw new MojoExecutionException("Failed to find artifact " + coords, e);
         }
     }
 }

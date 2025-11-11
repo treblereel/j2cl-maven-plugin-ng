@@ -21,8 +21,14 @@ public class Project extends Dependency {
         return artifactResolver.getDependencies(project.getGroupId(), project.getArtifactId(), project.getVersion(), "compile");
     }
 
+    @Override
     public boolean isSourceMapped() {
         return true;
+    }
+
+    @Override
+    public MavenProject asMavenProject() {
+        return project;
     }
 
     @Override
