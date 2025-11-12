@@ -11,34 +11,29 @@ import java.util.stream.Stream;
 
 public class StripSourcesTask extends TaskInput {
 
-  public static final PathMatcher JAVA_SOURCES = withSuffix(".java");
-  public static final PathMatcher NATIVE_JS_SOURCES = withSuffix(".native.js");
+    public static final PathMatcher JAVA_SOURCES = withSuffix(".java");
 
-  public static final PathMatcher OUTPUT_JAR = withSuffix("output.jar");
+    public StripSourcesTask(Dependency dep, BuildContext buildContext) {
+        super(dep, buildContext);
+    }
 
+    @Override
+    public OutputTypes getOutputTypes() {
+        return OutputTypes.STRIPPED_SOURCES;
+    }
 
-  public StripSourcesTask(Dependency dep, BuildContext buildContext) {
-    super(dep, buildContext);
-  }
+    @Override
+    public void process() {
+        TaskOutput bytecode = input(dep, OutputTypes.BYTECODE).filter(JAVA_SOURCES);
+        TaskOutput sources = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
 
-  @Override
-  public OutputTypes getOutputTypes() {
-    return OutputTypes.STRIPPED_SOURCES;
-  }
+        List<SourceUtils.FileInfo> files = Stream.concat(
+                        bytecode.files().stream(),
+                        sources.files().stream()
+                ).map(f -> SourceUtils.FileInfo.create(f.getAbsolutePath().toString(), f.getSourcePath().toString()))
+                .toList();
 
-  @Override
-  public void process() {
-    TaskOutput bytecode = input(dep, OutputTypes.STRIPPED_SOURCES).filter(JAVA_SOURCES, NATIVE_JS_SOURCES);
-    TaskOutput sources = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
-    TaskOutput headers = input(dep, OutputTypes.STRIPPED_BYTECODE).filter(OUTPUT_JAR);
-
-    Stream.concat(bytecode.files().stream(), sources.files().stream())
-            .
-
-    List<SourceUtils.FileInfo> files = Stream.concat(bytecode.files().stream(), sources.files().stream())
-            .map(f -> SourceUtils.FileInfo.create(f.getAbsolutePath().toString(), f.getSourcePath().toString())).toList();
-
-    GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(outputPath().toFile());
-    preprocessor.preprocess(files);
-  }
+        GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(outputPath().toFile());
+        preprocessor.preprocess(files);
+    }
 }

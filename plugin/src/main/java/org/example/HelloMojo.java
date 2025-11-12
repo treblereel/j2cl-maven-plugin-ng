@@ -13,30 +13,20 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
-import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
-import org.eclipse.aether.collection.CollectRequest;
-import org.eclipse.aether.collection.DependencyCollectionException;
-import org.eclipse.aether.graph.DependencyNode;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
-import org.eclipse.aether.resolution.ArtifactResult;
-import org.eclipse.aether.util.artifact.JavaScopes;
 import org.example.config.BuildConfig;
 import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
-import org.example.model.Dependency;
 import org.example.model.Project;
-import org.example.task.ByteCodeTask;
-import org.example.task.StripSourcesTask;
-import org.example.task.TaskInput;
+import org.example.task.FinalTask;
+import org.example.task.J2CLTask;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Stack;
 
 @Mojo(
         name = "compile",
@@ -84,6 +74,9 @@ public class HelloMojo extends AbstractMojo {
     @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
     protected String bootstrapJsZip;
 
+    @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath::v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
+    protected String bootstrapClasspath;
+
     @Override
     public void execute() throws MojoExecutionException {
         getLog().info("👋 Hello, " + name + "!");
@@ -97,47 +90,17 @@ public class HelloMojo extends AbstractMojo {
                 getFileWithMavenCoords(jspecify)
         );
 
+        File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
 
-        BuildConfig buildConfig = new BuildConfig(extraClasspath);
-
+        BuildConfig buildConfig = new BuildConfig(extraClasspath, bootstrapClasspath, getLog());
         BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
-
-
-        project.getDependencies().stream().forEach(dependency -> {
-            getLog().info("Dependency: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
-            try {
-                printTransitiveDeps(dependency);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
-        });
-
         Project project = new Project(this.project, artifactResolver);
 
-
         try {
-            new StripSourcesTask(project, buildContext).runTask().join();
+            new FinalTask(project, buildContext).runTask().join();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private void printTransitiveDeps(org.apache.maven.model.Dependency dep) throws Exception {
-        String coords = String.format("%s:%s:%s", dep.getGroupId(), dep.getArtifactId(), dep.getVersion());
-        var artifact = new DefaultArtifact(coords);
-
-        var request = new CollectRequest();
-        request.setRoot(new org.eclipse.aether.graph.Dependency(artifact, dep.getScope()));
-        request.setRepositories(remoteRepos);
-
-        DependencyNode root = repoSystem.collectDependencies(repoSession, request).getRoot();
-
-        getLog().info("Dependencies for " + coords + ":");
-        root.getChildren().forEach(child -> {
-            var cdep = child.getDependency().getArtifact();
-            getLog().info("  ↳ " + cdep.getGroupId() + ":" + cdep.getArtifactId() + ":" + cdep.getVersion());
-        });
     }
 
     protected File getFileWithMavenCoords(String coords) throws MojoExecutionException {

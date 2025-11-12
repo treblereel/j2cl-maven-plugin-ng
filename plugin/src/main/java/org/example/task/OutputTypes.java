@@ -55,7 +55,9 @@ public enum OutputTypes {
     /**
      * Optimized build including all js from a project's runtime classpath
      */
-    OPTIMIZED_JS("optimized_js");
+    OPTIMIZED_JS("optimized_js"),
+
+    FINAL_TASK("final_task");
 
     private final String name;
 
