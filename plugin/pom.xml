@@ -120,7 +120,7 @@
         </dependency>
 
         <!-- closure compiler dependencies -->
-        <dependency>
+<!--        <dependency>
             <groupId>org.kie.j2cl.tools</groupId>
             <artifactId>closure-compiler-unshaded</artifactId>
             <version>${closure.compiler.unshaded.version}</version>
@@ -142,7 +142,7 @@
                     <artifactId>jspecify</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
@@ -152,6 +152,16 @@
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
             <version>4.31.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.javascript</groupId>
+            <artifactId>closure-compiler-unshaded</artifactId>
+            <version>v20250820</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.javascript</groupId>
+            <artifactId>closure-compiler-externs</artifactId>
+            <version>v20250820</version>
         </dependency>
     </dependencies>
 </project>

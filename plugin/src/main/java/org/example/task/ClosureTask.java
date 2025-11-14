@@ -1,7 +1,9 @@
 package org.example.task;
 
 import org.example.context.BuildContext;
+import org.example.log.BuildLog;
 import org.example.model.Dependency;
+import org.example.tools.Closure;
 
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -90,6 +92,7 @@ public class ClosureTask extends TaskInput {
     TaskOutput depsUnzipped = input(allDependencies, OutputTypes.UNZIPPED_DEPENDENCIES);
     TaskOutput depsTranspiled = input(allDependencies, OutputTypes.TRANSPILED_JS);
 
+      Closure closureCompiler = new Closure((BuildLog) buildContext.getConfig());
 
 
 /*        List<Dependency> allDependencies = getAllDependencies();
