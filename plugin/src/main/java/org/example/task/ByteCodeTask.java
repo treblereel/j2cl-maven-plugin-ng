@@ -12,15 +12,11 @@ import org.example.model.Dependency;
 import org.example.tools.AptPath;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,10 +45,10 @@ public class ByteCodeTask extends TaskInput {
     public void process() {
         List<File> extraClasspath = buildContext.getConfig().getExtraClasspath();
 
-        TaskOutput self = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
+        TaskOutput self = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
 
         Set<String> moduleDependencies = Stream.concat(extraClasspath.stream().map(File::toString),
-                        input(dep.getDependencies(), OutputTypes.BYTECODE)
+                        input(dependency.getDependencies(), OutputTypes.BYTECODE)
                                 .filter(TURBINE_OUTPUT)
                                 .files()
                                 .stream()
@@ -64,8 +60,8 @@ public class ByteCodeTask extends TaskInput {
         List<String> annotationProcessorJars = new ArrayList<>();
         List<String> annotationProcessorNames = new ArrayList<>();
 
-        if (dep.isSourceMapped()) {
-            MavenProject project = dep.asMavenProject();
+        if (dependency.isSourceMapped()) {
+            MavenProject project = dependency.asMavenProject();
             List<AptPath> aptPaths = buildContext.getAPTProcessorPaths(project);
             for (AptPath aptPath : aptPaths) {
                 moduleDependencies.add(aptPath.annotationProcessorFile().getAbsolutePath());
@@ -97,7 +93,7 @@ public class ByteCodeTask extends TaskInput {
             });
 
         } catch (TurbineError e) {
-            throw new RuntimeException("Turbine compilation failed at dependency " + dep.key(), e);
+            throw new RuntimeException("Turbine compilation failed at dependency " + dependency.key(), e);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

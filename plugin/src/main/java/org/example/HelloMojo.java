@@ -26,7 +26,9 @@ import org.example.task.J2CLTask;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mojo(
         name = "compile",
@@ -35,83 +37,95 @@ import java.util.List;
 )
 public class HelloMojo extends AbstractMojo {
 
-    @Parameter(property = "sayhello.name", defaultValue = "World")
-    private String name;
+  @Parameter(property = "sayhello.name", defaultValue = "World")
+  private String name;
 
-    @Parameter(defaultValue = "${project}", readonly = true, required = true)
-    private MavenProject project;
+  @Parameter(defaultValue = "${project}", readonly = true, required = true)
+  private MavenProject project;
 
-    @Parameter(defaultValue = "${repositorySystemSession}", readonly = true, required = true)
-    private RepositorySystemSession repoSession;
+  @Parameter(defaultValue = "${repositorySystemSession}", readonly = true, required = true)
+  private RepositorySystemSession repoSession;
 
-    @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
-    private java.util.List<RemoteRepository> remoteRepos;
+  @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
+  private java.util.List<RemoteRepository> remoteRepos;
 
-    @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+  @Parameter(defaultValue = "${session}", readonly = true, required = true)
+  private MavenSession session;
 
-    @Component
-    private RepositorySystem repoSystem;
+  @Component
+  private RepositorySystem repoSystem;
 
-    @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
-    private MojoExecution mojoExecution;
+  @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
+  private MojoExecution mojoExecution;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:v20250822-1", required = true)
-    protected String jreJar;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:jre:v20250822-1", required = true)
+  protected String jreJar;
 
-    @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
-    protected String jspecify;
+  @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
+  protected String jspecify;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:v20250822-1", required = true)
-    protected String internalAnnotationsJar;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:v20250822-1", required = true)
+  protected String internalAnnotationsJar;
 
-    @Parameter(defaultValue = "com.google.jsinterop:jsinterop-annotations:2.1.0", required = true)
-    protected String jsinteropAnnotationsJar;
+  @Parameter(defaultValue = "com.google.jsinterop:jsinterop-annotations:2.1.0", required = true)
+  protected String jsinteropAnnotationsJar;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1", required = true)
-    protected String jsinteropBaseJar;
+  @Parameter(defaultValue = "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1", required = true)
+  protected String jsinteropBaseJar;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
-    protected String bootstrapJsZip;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
+  protected String bootstrapJsZip;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath::v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
-    protected String bootstrapClasspath;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath::v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
+  protected String bootstrapClasspath;
 
-    @Override
-    public void execute() throws MojoExecutionException {
-        getLog().info("👋 Hello, " + name + "!");
-        ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, getLog());
+  @Override
+  public void execute() throws MojoExecutionException {
 
-        List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jreJar),
-                getFileWithMavenCoords(jsinteropAnnotationsJar),
-                getFileWithMavenCoords(internalAnnotationsJar),
-                getFileWithMavenCoords(jsinteropBaseJar),
-                getFileWithMavenCoords(jspecify)
-        );
 
-        File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
+    Map<String, String> defaultDependencyReplacement = new HashMap<>();
+    defaultDependencyReplacement.put("com.google.jsinterop:base", "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1");
+    defaultDependencyReplacement.put("org.gwtproject:gwt-user", null);
+    defaultDependencyReplacement.put("org.gwtproject:gwt-dev", null);
+    defaultDependencyReplacement.put("org.gwtproject:gwt-servlet", null);
+    defaultDependencyReplacement.put("com.google.gwt:gwt-user", null);
+    defaultDependencyReplacement.put("com.google.gwt:gwt-dev", null);
+    defaultDependencyReplacement.put("com.google.gwt:gwt-servlet", null);
 
-        BuildConfig buildConfig = new BuildConfig(extraClasspath, bootstrapClasspath, getLog());
-        BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
-        Project project = new Project(this.project, artifactResolver);
 
-        try {
-            new FinalTask(project, buildContext).runTask().join();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    getLog().info("👋 Hello, " + name + "!");
+    ArtifactResolver artifactResolver = new ArtifactResolver(repoSystem, remoteRepos, repoSession, session, defaultDependencyReplacement, getLog());
+
+    List<File> extraClasspath = Arrays.asList(
+            getFileWithMavenCoords(jreJar),
+            getFileWithMavenCoords(jsinteropAnnotationsJar),
+            getFileWithMavenCoords(internalAnnotationsJar),
+            getFileWithMavenCoords(jsinteropBaseJar),
+            getFileWithMavenCoords(jspecify)
+    );
+
+    File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
+
+    BuildConfig buildConfig = new BuildConfig(extraClasspath, bootstrapClasspath, getLog());
+    BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
+    Project project = new Project(this.project, artifactResolver);
+
+    try {
+      new FinalTask(project, buildContext).runTask().join();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    protected File getFileWithMavenCoords(String coords) throws MojoExecutionException {
-        ArtifactRequest request = new ArtifactRequest()
-                .setRepositories(remoteRepos)
-                .setArtifact(new DefaultArtifact(coords));
+  protected File getFileWithMavenCoords(String coords) throws MojoExecutionException {
+    ArtifactRequest request = new ArtifactRequest()
+            .setRepositories(remoteRepos)
+            .setArtifact(new DefaultArtifact(coords));
 
-        try {
-            return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
-        } catch (ArtifactResolutionException e) {
-            throw new MojoExecutionException("Failed to find artifact " + coords, e);
-        }
+    try {
+      return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
+    } catch (ArtifactResolutionException e) {
+      throw new MojoExecutionException("Failed to find artifact " + coords, e);
     }
+  }
 }

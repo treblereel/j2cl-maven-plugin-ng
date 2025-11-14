@@ -4,9 +4,12 @@ import org.example.context.BuildContext;
 import org.example.model.Dependency;
 import org.example.utils.FileUtils;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.zip.ZipFile;
 
 public class UnzipTaskInput extends TaskInput {
@@ -22,8 +25,8 @@ public class UnzipTaskInput extends TaskInput {
 
   @Override
   public void process() {
-    if (!dep.isSourceMapped()) {
-      File jar = dep.sourcesJar();
+    if (!dependency.isSourceMapped()) {
+      File jar = dependency.bytecodeJar();
       try (ZipFile zipFile = new ZipFile(jar)) {
         zipFile.stream().forEach(entry -> {
           try {
@@ -42,13 +45,17 @@ public class UnzipTaskInput extends TaskInput {
           }
         });
       } catch (Exception e) {
-        throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dep.key(), e);
+        throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dependency.key(), e);
       }
     } else {
       try {
-        FileUtils.copyDirectory(dep.sourcesJar().toPath(), outputPath());
+        Path sourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/java");
+        Path resourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/resources");
+
+        FileUtils.copyDirectory(sourcePath, outputPath());
+        FileUtils.copyDirectory(resourcePath, outputPath());
       } catch (IOException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Failed to copy sources for dependency " + dependency.key(), e);
       }
     }
   }

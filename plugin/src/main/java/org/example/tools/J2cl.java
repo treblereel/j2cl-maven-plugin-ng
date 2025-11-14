@@ -57,7 +57,7 @@ public class J2cl {
                 //.setSystem(bootstrap.getAbsolutePath())
                 .setNullMarkedSupported(true)
                 .setEmitReadableLibraryInfo(false)
-                .setEmitReadableSourceMap(false)
+                .setEmitReadableSourceMap(true)
                 .setGenerateKytheIndexingMetadata(false)
                 .setForbiddenAnnotations(ImmutableList.of());
 

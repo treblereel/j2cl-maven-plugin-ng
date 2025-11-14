@@ -1,6 +1,5 @@
 package org.example.task;
 
-import org.apache.tools.ant.Task;
 import org.example.context.BuildContext;
 import org.example.model.Dependency;
 
@@ -17,7 +16,7 @@ public class FinalTask extends TaskInput {
 
     @Override
     public void process() {
-        input(dep, OutputTypes.OPTIMIZED_JS);
+        input(dependency, OutputTypes.OPTIMIZED_JS);
 
 
     }

@@ -24,8 +24,8 @@ public class StripSourcesTask extends TaskInput {
 
     @Override
     public void process() {
-        TaskOutput bytecode = input(dep, OutputTypes.BYTECODE).filter(JAVA_SOURCES);
-        TaskOutput sources = input(dep, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
+        TaskOutput bytecode = input(dependency, OutputTypes.BYTECODE).filter(JAVA_SOURCES);
+        TaskOutput sources = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
 
         List<SourceUtils.FileInfo> files = Stream.concat(
                         bytecode.files().stream(),
