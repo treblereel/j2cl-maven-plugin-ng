@@ -9,46 +9,52 @@ import java.util.List;
 
 public class Project extends Dependency {
 
-    private final MavenProject project;
+  private final List<Dependency> dependencies;
+  private final MavenProject project;
 
-    public Project(MavenProject project, ArtifactResolver artifactResolver) {
-        super(null, artifactResolver);
-        this.project = project;
-    }
+  public Project(MavenProject project, ArtifactResolver artifactResolver, List<Dependency> dependencies) {
+    super(null, artifactResolver);
+    this.project = project;
+    this.dependencies = dependencies;
+  }
 
-    @Override
-    public List<Dependency> getDependencies() {
-        return artifactResolver.getDependencies(project.getGroupId(), project.getArtifactId(), project.getVersion(), "compile");
-    }
+  @Override
+  public List<Dependency> getDependencies() {
+    return dependencies;
+  }
 
-    @Override
-    public boolean isSourceMapped() {
-        return true;
-    }
+  public boolean isJsZip() {
+    return false;
+  }
 
-    @Override
-    public MavenProject asMavenProject() {
-        return project;
-    }
+  @Override
+  public boolean isSourceMapped() {
+    return true;
+  }
 
-    @Override
-    public File bytecodeJar() {
-        return new File(project.getBasedir(), "target/classes");
-    }
+  @Override
+  public MavenProject asMavenProject() {
+    return project;
+  }
 
-    @Override
-    public File sourcesJar() {
-        return new File(project.getBasedir(), "src/main/java");
-    }
+  @Override
+  public File bytecodeJar() {
+    return new File(project.getBasedir(), "target/classes");
+  }
 
-    public String key() {
-        return String.format("%s-%s-%s", project.getArtifact().getGroupId(), project.getArtifact().getArtifactId(), project.getArtifact().getVersion());
-    }
+  @Override
+  public File sourcesJar() {
+    return new File(project.getBasedir(), "src/main/java");
+  }
 
-    @Override
-    public String toString() {
-        return "Project{" +
-                "project=" + project +
-                '}';
-    }
+  public String key() {
+    return String.format("%s-%s-%s", project.getArtifact().getGroupId(), project.getArtifact().getArtifactId(), project.getArtifact().getVersion());
+  }
+
+  @Override
+  public String toString() {
+    return "Project{" +
+            "project=" + project +
+            '}';
+  }
 }

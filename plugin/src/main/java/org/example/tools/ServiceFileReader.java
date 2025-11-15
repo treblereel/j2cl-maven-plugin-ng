@@ -17,7 +17,7 @@ public final class ServiceFileReader {
     try (ZipFile zf = new ZipFile(jar.toFile())) {
       ZipEntry e = zf.getEntry(SERVICE_PATH);
       if (e == null) {
-        return List.of(); // файла нет — возвращаем пустой список
+        return List.of();
       }
       try (InputStream in = zf.getInputStream(e);
            BufferedReader br = new BufferedReader(

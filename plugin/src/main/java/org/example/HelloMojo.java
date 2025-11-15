@@ -1,5 +1,7 @@
 package org.example;
 
+import org.apache.maven.RepositoryUtils;
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecution;
@@ -17,9 +19,11 @@ import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
+import org.eclipse.aether.resolution.ArtifactResult;
 import org.example.config.BuildConfig;
 import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
+import org.example.model.Dependency;
 import org.example.model.Project;
 import org.example.task.FinalTask;
 import org.example.task.J2CLTask;
@@ -29,6 +33,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Mojo(
         name = "compile",
@@ -61,6 +66,15 @@ public class HelloMojo extends AbstractMojo {
   @Parameter(defaultValue = "org.kie.j2cl.tools:jre:v20250822-1", required = true)
   protected String jreJar;
 
+  @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath:v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
+  protected String bootstrapClasspath;
+
+  @Parameter(defaultValue = "org.kie.j2cl.tools:jre:zip:jszip:v20250822-1", required = true)
+  protected String jreJsZip;
+
+  @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
+  protected String bootstrapJsZip;
+
   @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
   protected String jspecify;
 
@@ -73,11 +87,14 @@ public class HelloMojo extends AbstractMojo {
   @Parameter(defaultValue = "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1", required = true)
   protected String jsinteropBaseJar;
 
-  @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
-  protected String bootstrapJsZip;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:closure-test:zip:jszip:v20250822-1", required = true)
+  protected String testJsZip;
 
-  @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath::v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
-  protected String bootstrapClasspath;
+  @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:v20250822-1", required = true)
+  protected String runtime;
+
+  @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:zip:jszip:v20250822-1", required = true)
+  protected String runtimeJsZip;
 
   @Override
   public void execute() throws MojoExecutionException {
@@ -104,11 +121,26 @@ public class HelloMojo extends AbstractMojo {
             getFileWithMavenCoords(jspecify)
     );
 
+    List<org.eclipse.aether.graph.Dependency> extraJsZips = Arrays.asList(
+            getAetherDependencyWithCoords(jreJsZip),
+            getAetherDependencyWithCoords(bootstrapJsZip)
+    );
+
     File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
 
     BuildConfig buildConfig = new BuildConfig(extraClasspath, bootstrapClasspath, getLog());
     BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
-    Project project = new Project(this.project, artifactResolver);
+
+    List<Dependency> dependencies = Stream.concat(artifactResolver.getDependencies(project.getGroupId(), project.getArtifactId(), project.getVersion(), "compile").stream(),
+            extraJsZips.stream().map(artifact -> new Dependency(artifact, artifactResolver))
+    ).toList();
+
+
+    Project project = new Project(this.project, artifactResolver, dependencies);
+
+    for (Dependency dependency : project.getDependencies()) {
+      System.out.println("Dependency: " + dependency.key() + " jszip=" + dependency.isJsZip());
+    }
 
     try {
       new FinalTask(project, buildContext).runTask().join();
@@ -124,6 +156,32 @@ public class HelloMojo extends AbstractMojo {
 
     try {
       return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
+    } catch (ArtifactResolutionException e) {
+      throw new MojoExecutionException("Failed to find artifact " + coords, e);
+    }
+  }
+
+  protected Artifact getMavenArtifactWithCoords(String coords) throws MojoExecutionException {
+    ArtifactRequest request = new ArtifactRequest()
+            .setRepositories(remoteRepos)
+            .setArtifact(new DefaultArtifact(coords));
+
+    try {
+      ArtifactResult result = repoSystem.resolveArtifact(repoSession, request);
+      return RepositoryUtils.toArtifact(result.getArtifact());
+    } catch (ArtifactResolutionException e) {
+      throw new MojoExecutionException("Failed to find artifact " + coords, e);
+    }
+  }
+
+  protected org.eclipse.aether.graph.Dependency getAetherDependencyWithCoords(String coords) throws MojoExecutionException {
+    ArtifactRequest request = new ArtifactRequest()
+            .setRepositories(remoteRepos)
+            .setArtifact(new DefaultArtifact(coords));
+
+    try {
+      ArtifactResult result = repoSystem.resolveArtifact(repoSession, request);
+      return new org.eclipse.aether.graph.Dependency(result.getArtifact(), "compile");
     } catch (ArtifactResolutionException e) {
       throw new MojoExecutionException("Failed to find artifact " + coords, e);
     }

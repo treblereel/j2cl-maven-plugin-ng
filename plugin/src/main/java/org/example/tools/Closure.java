@@ -17,6 +17,7 @@ package org.example.tools;
 
 import com.google.javascript.jscomp.*;
 import org.example.log.BuildLog;
+import org.example.task.FileEntry;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -37,6 +38,14 @@ public class Closure {
 
     public Closure(BuildLog log) {
         this.log = log;
+    }
+
+    public static Map<String, List<String>> mapFromInputs(List<FileEntry> inputs) {
+        return inputs.stream()
+                .collect(Collectors.groupingBy(
+                        c -> c.getParentPath().toString(),
+                        Collectors.mapping(c -> c.getSourcePath().toString(), Collectors.toUnmodifiableList())
+                ));
     }
 
     public boolean compile(
@@ -109,8 +118,8 @@ public class Closure {
         jscompArgs.add("--compilation_level");
         jscompArgs.add(compilationLevel.name());
 
-        jscompArgs.add("--dependency_mode");
-        jscompArgs.add(dependencyMode.name());
+        //jscompArgs.add("--dependency_mode");
+        //jscompArgs.add(dependencyMode.name());
 
         jscompArgs.add("--language_out");
         jscompArgs.add(languageOut.name());

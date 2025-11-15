@@ -18,6 +18,10 @@ public class Dependency {
     this.artifactResolver = artifactResolver;
   }
 
+  public boolean isJsZip() {
+    return artifactResolver.resolveByteCodeJar(dependency.getArtifact()).toString().endsWith("jszip.zip");
+  }
+
   public void setDependency(org.eclipse.aether.graph.Dependency dependency) {
     this.dependency = dependency;
   }

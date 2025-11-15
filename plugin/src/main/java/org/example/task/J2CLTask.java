@@ -34,6 +34,10 @@ public class J2CLTask extends TaskInput {
 
   @Override
   public void process() {
+    if(dependency.isJsZip()) {
+      // JsZip dependencies are already transpiled
+      return;
+    }
 
     //input(dependency.getDependencies(), OutputTypes.TRANSPILED_JS);
 
@@ -43,6 +47,11 @@ public class J2CLTask extends TaskInput {
             input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES).filter(NATIVE_JS_SOURCES).files().stream(),
             input(dependency, OutputTypes.BYTECODE).filter(NATIVE_JS_SOURCES).files().stream()
     );
+
+
+    getAllDependencies().stream().peek(dep -> {
+      System.out.println("Dependency: " + dep.key() + " " + dep.isJsZip());
+    });
 
     Set<String> moduleDependencies = Stream.concat(
                     buildContext.getConfig().getExtraClasspath().stream().map(File::toString),

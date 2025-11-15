@@ -1,5 +1,8 @@
 package org.example.task;
 
+import com.google.javascript.jscomp.CompilationLevel;
+import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.DependencyOptions;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
@@ -92,7 +95,39 @@ public class ClosureTask extends TaskInput {
     TaskOutput depsUnzipped = input(allDependencies, OutputTypes.UNZIPPED_DEPENDENCIES);
     TaskOutput depsTranspiled = input(allDependencies, OutputTypes.TRANSPILED_JS);
 
-      Closure closureCompiler = new Closure((BuildLog) buildContext.getConfig());
+    Map<String, List<String>> js = Closure.mapFromInputs(depsTranspiled.files().stream()
+            .filter(f -> PLAIN_JS_SOURCES.matches(f.getSourcePath()))
+            .toList());
+
+
+    js.forEach((k, v) -> {
+      System.out.println("From transpiled: " + k);
+      v.forEach(f -> System.out.println("  " + f));
+    });
+
+
+
+
+    Closure closureCompiler = new Closure((BuildLog) buildContext.getConfig());
+
+
+    closureCompiler.compile(
+            CompilationLevel.ADVANCED_OPTIMIZATIONS,
+            DependencyOptions.DependencyMode.PRUNE,
+            CompilerOptions.LanguageMode.ECMASCRIPT_NEXT,
+            js,
+            outputPath().toFile(),
+            List.of(),
+            Map.of(),
+            List.of(),
+            Optional.empty(),
+            true,
+            true,
+            true,
+            false,
+            "BROWSER",
+            "test.js"
+            );
 
 
 /*        List<Dependency> allDependencies = getAllDependencies();
