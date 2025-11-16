@@ -7,6 +7,9 @@ import org.example.model.Dependency;
 import org.example.tools.J2cl;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,6 +19,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipFile;
 
 public class J2CLTask extends TaskInput {
 
@@ -34,11 +38,6 @@ public class J2CLTask extends TaskInput {
 
   @Override
   public void process() {
-    if(dependency.isJsZip()) {
-      // JsZip dependencies are already transpiled
-      return;
-    }
-
     //input(dependency.getDependencies(), OutputTypes.TRANSPILED_JS);
 
     TaskOutput self = input(dependency, OutputTypes.STRIPPED_SOURCES).filter(JAVA_SOURCES);
@@ -50,7 +49,7 @@ public class J2CLTask extends TaskInput {
 
 
     getAllDependencies().stream().peek(dep -> {
-      System.out.println("Dependency: " + dep.key() + " " + dep.isJsZip());
+      //System.out.println("Dependency: " + dep.key() + " " + dep.isJsZip());
     });
 
     Set<String> moduleDependencies = Stream.concat(

@@ -121,25 +121,23 @@ public class HelloMojo extends AbstractMojo {
             getFileWithMavenCoords(jspecify)
     );
 
-    List<org.eclipse.aether.graph.Dependency> extraJsZips = Arrays.asList(
-            getAetherDependencyWithCoords(jreJsZip),
-            getAetherDependencyWithCoords(bootstrapJsZip)
-    );
+      List<Artifact> extraJsZips = Arrays.asList(
+              getMavenArtifactWithCoords(jreJsZip),
+              getMavenArtifactWithCoords(bootstrapJsZip)
+      );
 
     File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
 
-    BuildConfig buildConfig = new BuildConfig(extraClasspath, bootstrapClasspath, getLog());
+    BuildConfig buildConfig = new BuildConfig(extraClasspath, extraJsZips, bootstrapClasspath, getLog());
     BuildContext buildContext = new BuildContext(project, buildConfig, artifactResolver, new PluginParameterExpressionEvaluator(session, mojoExecution));
 
-    List<Dependency> dependencies = Stream.concat(artifactResolver.getDependencies(project.getGroupId(), project.getArtifactId(), project.getVersion(), "compile").stream(),
-            extraJsZips.stream().map(artifact -> new Dependency(artifact, artifactResolver))
-    ).toList();
+    List<Dependency> dependencies = artifactResolver.getDependencies(project.getGroupId(), project.getArtifactId(), project.getVersion(), "compile");
 
 
     Project project = new Project(this.project, artifactResolver, dependencies);
 
     for (Dependency dependency : project.getDependencies()) {
-      System.out.println("Dependency: " + dependency.key() + " jszip=" + dependency.isJsZip());
+      System.out.println("Dependency: " + dependency.key() + " jszip=" + dependency.isJsZip() + " " + dependency.bytecodeJar());
     }
 
     try {

@@ -185,4 +185,21 @@ public class ArtifactResolver {
       throw new MojoExecutionException("Failed to find artifact " + coords, e);
     }
   }
+
+    public static org.eclipse.aether.graph.Dependency toAetherDependency(Artifact mavenArtifact) {
+        String coords = String.format(
+                "%s:%s:%s:%s:%s",
+                mavenArtifact.getGroupId(),
+                mavenArtifact.getArtifactId(),
+                mavenArtifact.getExtension(),
+                mavenArtifact.getClassifier(),
+                mavenArtifact.getVersion()
+        );
+
+        org.eclipse.aether.artifact.Artifact aetherArtifact =
+                new DefaultArtifact(coords)
+                        .setFile(mavenArtifact.getFile());
+
+        return new org.eclipse.aether.graph.Dependency(aetherArtifact, "compile");
+    }
 }

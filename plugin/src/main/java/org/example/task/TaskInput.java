@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -105,7 +106,7 @@ public abstract class TaskInput {
     return input(List.of(dependencies), outputTypes);
   }
 
-  protected TaskOutput input(List<Dependency> dependencies, OutputTypes outputTypes) {
+  protected TaskOutput input(Collection<Dependency> dependencies, OutputTypes outputTypes) {
     List<CompletableFuture<Path>> tasks = dependencies.stream()
             .map(d -> TaskInputFactory.create(d, buildContext, outputTypes).runTask())
             .toList();

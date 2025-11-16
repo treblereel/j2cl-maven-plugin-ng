@@ -40,11 +40,11 @@ public class Closure {
         this.log = log;
     }
 
-    public static Map<String, List<String>> mapFromInputs(List<FileEntry> inputs) {
+    public static Map<String, List<String>> mapFromInputs(Collection<FileEntry> inputs) {
         return inputs.stream()
                 .collect(Collectors.groupingBy(
                         c -> c.getParentPath().toString(),
-                        Collectors.mapping(c -> c.getSourcePath().toString(), Collectors.toUnmodifiableList())
+                        Collectors.mapping(c -> c.getAbsolutePath().toString(), Collectors.toUnmodifiableList())
                 ));
     }
 
@@ -63,8 +63,8 @@ public class Closure {
             boolean rewritePolyfills,
             boolean enabledSourcemaps,
             String env,
-            String jsOutputFile
-    ) {
+            String jsOutputFile,
+            List<File> extra) {
         List<String> jscompArgs = new ArrayList<>();
 
         Compiler jsCompiler = new Compiler(System.err);
@@ -90,6 +90,11 @@ public class Closure {
                     jscompArgs.add("--js");
                     jscompArgs.add(jsInputPath);
                 });
+
+        extra.forEach(file -> {
+            jscompArgs.add("--js");
+            jscompArgs.add(file.getAbsolutePath());
+        });
 
         List<String> duplicateRelativePaths = relativePathsWithCount.entrySet().stream()
                 .filter(entry -> entry.getValue() > 1)

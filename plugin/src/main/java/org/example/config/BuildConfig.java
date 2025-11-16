@@ -1,5 +1,6 @@
 package org.example.config;
 
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.logging.Log;
 import org.example.log.BuildLog;
 
@@ -12,9 +13,11 @@ public class BuildConfig implements Config, BuildLog {
     private final List<File> extraClasspath;
     private final Log log;
     private final File bootstrapClasspath;
+    private final List<Artifact> extraJsZips;
 
-    public BuildConfig(List<File> extraClasspath, File bootstrapClasspath, Log log) {
+    public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath, Log log) {
         this.extraClasspath = extraClasspath;
+        this.extraJsZips = extraJsZips;
         this.bootstrapClasspath = bootstrapClasspath;
         this.log = log;
     }
@@ -23,6 +26,11 @@ public class BuildConfig implements Config, BuildLog {
     @Override
     public List<File> getExtraClasspath() {
         return extraClasspath;
+    }
+
+    @Override
+    public List<File> getJsZip() {
+        return extraJsZips.stream().map(m -> m.getFile()).toList();
     }
 
     @Override
@@ -68,5 +76,9 @@ public class BuildConfig implements Config, BuildLog {
     @Override
     public void error(Throwable t) {
         log.error(t);
+    }
+
+    public List<Artifact> getExtraJsZips() {
+        return extraJsZips;
     }
 }

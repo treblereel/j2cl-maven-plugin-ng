@@ -117,6 +117,12 @@
             <groupId>org.kie.j2cl.tools</groupId>
             <artifactId>backend-closure</artifactId>
             <version>${j2cl.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.kie.j2cl.tools</groupId>
+                    <artifactId>closure-compiler-unshaded</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- closure compiler dependencies -->

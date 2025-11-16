@@ -5,7 +5,9 @@ import java.util.List;
 
 public interface Config {
 
-  List<File> getExtraClasspath();
+    List<File> getExtraClasspath();
 
-  File getBootstrapClasspath();
+    File getBootstrapClasspath();
+
+    List<File> getJsZip();
 }

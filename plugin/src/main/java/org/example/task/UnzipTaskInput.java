@@ -14,49 +14,58 @@ import java.util.zip.ZipFile;
 
 public class UnzipTaskInput extends TaskInput {
 
-  public UnzipTaskInput(Dependency dep, BuildContext buildContext) {
-    super(dep, buildContext);
-  }
-
-  @Override
-  public OutputTypes getOutputTypes() {
-    return OutputTypes.UNZIPPED_DEPENDENCIES;
-  }
-
-  @Override
-  public void process() {
-    if (!dependency.isSourceMapped()) {
-      File jar = dependency.bytecodeJar();
-      try (ZipFile zipFile = new ZipFile(jar)) {
-        zipFile.stream().forEach(entry -> {
-          try {
-            File outFile = outputPath().resolve(entry.getName()).toFile();
-            if (entry.isDirectory()) {
-              outFile.mkdirs();
-            } else {
-              outFile.getParentFile().mkdirs();
-              try (InputStream is = zipFile.getInputStream(entry);
-                   OutputStream os = new FileOutputStream(outFile)) {
-                is.transferTo(os);
-              }
-            }
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        });
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dependency.key(), e);
-      }
-    } else {
-      try {
-        Path sourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/java");
-        Path resourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/resources");
-
-        FileUtils.copyDirectory(sourcePath, outputPath());
-        FileUtils.copyDirectory(resourcePath, outputPath());
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to copy sources for dependency " + dependency.key(), e);
-      }
+    public UnzipTaskInput(Dependency dep, BuildContext buildContext) {
+        super(dep, buildContext);
     }
-  }
+
+    @Override
+    public OutputTypes getOutputTypes() {
+        return OutputTypes.UNZIPPED_DEPENDENCIES;
+    }
+
+    @Override
+    public void process() {
+
+
+        if (!dependency.isSourceMapped()) {
+            System.out.println("               Unzipping " + dependency.key() + " " + dependency.bytecodeJar() + " " + dependency.getClass().getCanonicalName());
+            extracted(dependency.bytecodeJar());
+            if (dependency.isJsZip()) {
+                System.out.println("JSZIP: " + dependency.key() + " " + dependency.key());
+            }
+        } else {
+            try {
+                Path sourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/java");
+                Path resourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/resources");
+
+                FileUtils.copyDirectory(sourcePath, outputPath());
+                FileUtils.copyDirectory(resourcePath, outputPath());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to copy sources for dependency " + dependency.key(), e);
+            }
+        }
+    }
+
+    private void extracted(File jar) {
+        try (ZipFile zipFile = new ZipFile(jar)) {
+            zipFile.stream().forEach(entry -> {
+                try {
+                    File outFile = outputPath().resolve(entry.getName()).toFile();
+                    if (entry.isDirectory()) {
+                        outFile.mkdirs();
+                    } else {
+                        outFile.getParentFile().mkdirs();
+                        try (InputStream is = zipFile.getInputStream(entry);
+                             OutputStream os = new FileOutputStream(outFile)) {
+                            is.transferTo(os);
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dependency.key(), e);
+        }
+    }
 }
