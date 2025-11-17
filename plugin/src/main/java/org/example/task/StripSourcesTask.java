@@ -2,6 +2,7 @@ package org.example.task;
 
 import com.google.j2cl.common.SourceUtils;
 import org.example.context.BuildContext;
+import org.example.log.BuildLog;
 import org.example.model.Dependency;
 import org.example.utils.GwtIncompatiblePreprocessor;
 
@@ -13,8 +14,8 @@ public class StripSourcesTask extends TaskInput {
 
     public static final PathMatcher JAVA_SOURCES = withSuffix(".java");
 
-    public StripSourcesTask(Dependency dep, BuildContext buildContext) {
-        super(dep, buildContext);
+    public StripSourcesTask(Dependency dep, BuildContext buildContext, BuildLog logger) {
+        super(dep, buildContext, logger);
     }
 
     @Override
@@ -33,7 +34,7 @@ public class StripSourcesTask extends TaskInput {
                 ).map(f -> SourceUtils.FileInfo.create(f.getAbsolutePath().toString(), f.getSourcePath().toString()))
                 .toList();
 
-        GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(outputPath().toFile());
+        GwtIncompatiblePreprocessor preprocessor = new GwtIncompatiblePreprocessor(outputPath().toFile(), logger);
         preprocessor.preprocess(files);
     }
 }

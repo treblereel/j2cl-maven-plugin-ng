@@ -19,6 +19,7 @@ import com.google.j2cl.common.OutputUtils;
 import com.google.j2cl.common.Problems;
 import com.google.j2cl.common.SourceUtils.FileInfo;
 import com.google.j2cl.tools.gwtincompatible.GwtIncompatibleStripper;
+import org.example.log.BuildLog;
 
 import java.io.File;
 import java.util.List;
@@ -29,11 +30,11 @@ import java.util.List;
  */
 public class GwtIncompatiblePreprocessor {
     private final File outputDirectory;
-    //private final BuildLog log;
+    private final BuildLog logger;
 
-    public GwtIncompatiblePreprocessor(File outputDirectory) {
+    public GwtIncompatiblePreprocessor(File outputDirectory, BuildLog logger) {
         this.outputDirectory = outputDirectory;
-        //this.log = log;
+        this.logger = logger;
         if (!outputDirectory.exists() || !outputDirectory.isDirectory()) {
             throw new IllegalArgumentException(outputDirectory.toString());
         }
@@ -49,8 +50,7 @@ public class GwtIncompatiblePreprocessor {
                 throw new IllegalStateException(problems.getErrors().toString());
             }
         } catch (Throwable t) {
-            //problems.getErrors().forEach(log::error);
-            problems.getErrors().forEach(System.err::println);
+            problems.getErrors().forEach(logger::error);
             throw t;
         }
     }

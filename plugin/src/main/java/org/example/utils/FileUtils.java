@@ -1,8 +1,11 @@
 package org.example.utils;
 
-import java.io.IOException;
+import org.example.model.Dependency;
+
+import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.zip.ZipFile;
 
 public class FileUtils {
 
@@ -24,5 +27,28 @@ public class FileUtils {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    public static void extractZip(File jar, Path outputPath, Dependency dependency) {
+        try (ZipFile zipFile = new ZipFile(jar)) {
+            zipFile.stream().forEach(entry -> {
+                try {
+                    File outFile = outputPath.resolve(entry.getName()).toFile();
+                    if (entry.isDirectory()) {
+                        outFile.mkdirs();
+                    } else {
+                        outFile.getParentFile().mkdirs();
+                        try (InputStream is = zipFile.getInputStream(entry);
+                             OutputStream os = new FileOutputStream(outFile)) {
+                            is.transferTo(os);
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dependency.key(), e);
+        }
     }
 }

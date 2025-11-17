@@ -1,21 +1,17 @@
 package org.example.context;
 
-import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.project.MavenProject;
 import org.example.config.Config;
 import org.example.tools.APTProcessors;
 import org.example.tools.AptPath;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Supplier;
 
 public class BuildContext {
-
 
   private final static String CACHE_DIRECTORY = "j2cl-plugin-cache";
 

@@ -18,18 +18,6 @@ public class Dependency {
         this.artifactResolver = artifactResolver;
     }
 
-    public boolean isJsZip() {
-        String coords = String.format("%s:%s:%s:%s:%s", dependency.getArtifact().getGroupId(), dependency.getArtifact().getArtifactId(), dependency.getArtifact().getVersion(), "zip", "jszip");
-
-        try {
-            artifactResolver.getDependencyWithMavenCoords(coords);
-        } catch (Exception e) {
-            return false;
-        }
-        return true;
-        //return dependency.getArtifact().getExtension().equals("zip") && dependency.getArtifact().getClassifier().equals("jszip");
-    }
-
     public void setDependency(org.eclipse.aether.graph.Dependency dependency) {
         this.dependency = dependency;
     }

@@ -3,20 +3,18 @@ package org.example.task;
 import com.google.javascript.jscomp.*;
 import com.google.javascript.rhino.StaticSourceFile;
 import org.example.context.BuildContext;
+import org.example.log.BuildLog;
 import org.example.model.Dependency;
-import org.example.tools.Closure;
 import org.example.tools.ClosureCompilerWarningsGuard;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 public class ClosureTask extends TaskInput {
@@ -81,8 +79,8 @@ public class ClosureTask extends TaskInput {
         }
     };
 
-    public ClosureTask(Dependency dep, BuildContext buildContext) {
-        super(dep, buildContext);
+    public ClosureTask(Dependency dep, BuildContext buildContext, BuildLog logger) {
+        super(dep, buildContext, logger);
     }
 
     @Override
@@ -92,18 +90,20 @@ public class ClosureTask extends TaskInput {
 
     @Override
     public void process() {
-        Collection<Dependency> allDependencies = getAllDependencies();
+        TaskOutput selfJsOutPut = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
 
+        Collection<Dependency> allDependencies = getFlattenDependencies();
         TaskOutput depsUnzipped = input(allDependencies, OutputTypes.UNZIPPED_DEPENDENCIES);
         TaskOutput depsTranspiled = input(allDependencies, OutputTypes.TRANSPILED_JS);
 
-        var extra = buildContext.getConfig().getJsZip();
+        List<File> extra = buildContext.getConfig().getJsZip();
 
-        Map<String, List<String>> js = Closure.mapFromInputs(
-                Stream.concat(
+        Map<String, List<String>> js = mapFromInputs(
+                Stream.of(selfJsOutPut.filter(PLAIN_JS_SOURCES).files().stream(),
                                 depsTranspiled.files().stream(),
                                 depsUnzipped.files().stream()
-                        ).filter(f -> PLAIN_JS_SOURCES.matches(f.getSourcePath()))
+                        ).flatMap(f -> f)
+                        .filter(f -> PLAIN_JS_SOURCES.matches(f.getSourcePath()))
                         .toList());
 
         CompilerOptions options = new CompilerOptions();
@@ -116,115 +116,86 @@ public class ClosureTask extends TaskInput {
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
-        SourceFile.fromCode("externs.zip", "", StaticSourceFile.SourceKind.EXTERN);
-
         List<SourceFile> externs = new ArrayList<>();
         try {
-            List<SourceFile> sourceFile = fromZipInput("externs.zip", getExternsFromClassPath(), Charset.defaultCharset());
+            List<SourceFile> sourceFile = fromZipInput(getExternsFromClassPath(), Charset.defaultCharset());
             externs.addAll(sourceFile);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to read externs from classpath", e);
         }
 
-
-        List<SourceFile> inputs = new ArrayList<>();
-
-        js.forEach((k, v) -> {
-            v.forEach(s -> {
-                inputs.add(SourceFile.fromFile(s));
-            });
+        selfJsOutPut.files().forEach(f -> {
+            System.out.println("Adding externs: " + f.getSourcePath());
         });
 
+        List<SourceFile> inputs = new ArrayList<>();
+        js.forEach((k, v) -> v.forEach(s -> inputs.add(SourceFile.fromFile(s))));
         extra.forEach(f -> {
             try {
                 inputs.addAll(SourceFile.fromZipFile(f.toPath().toString(), Charset.defaultCharset()));
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Unable to read extra files from " + f, e);
             }
         });
 
+        String compressedJs = runCompiler(externs, inputs, options);
+        Path outPutFolder = outputPath().resolve(buildContext.getConfig().initialScriptFilename()).getParent();
+
+        writeJSScriptToDisk(outPutFolder, compressedJs);
+        copyPublicResources(selfJsOutPut, depsUnzipped, outPutFolder);
+    }
+
+    private void copyPublicResources(TaskOutput selfJsOutPut,TaskOutput depsUnzipped, Path outPutFolder) {
+            List<FileEntry> resources = Stream.concat(
+                    selfJsOutPut.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream(),
+                    depsUnzipped.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream()
+            ).toList();
+
+            try {
+                for (FileEntry resource : resources) {
+                    Path outPutPath = outPutFolder.resolve(extractPublicResourcePath(resource.getSourcePath()));
+                    System.out.println("Copying resource: " + resource.getAbsolutePath() + " to " + outPutPath);
+                    Files.createDirectories(outPutPath.getParent());
+                    Files.copy(resource.getAbsolutePath(), outPutPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+                throw new RuntimeException("Unable to copy resources to output directory: " + outPutFolder, e);
+            }
+    }
+
+    private void writeJSScriptToDisk(Path outPutFolder, String compressedJs) {
+        Path outputJSScriptName = outputPath().resolve(buildContext.getConfig().initialScriptFilename());
+        try {
+            Files.createDirectories(outPutFolder);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to create output directory: " + outPutFolder, e);
+        }
+        try {
+            Files.createDirectories(outPutFolder);
+            Files.writeString(outputJSScriptName, compressedJs, Charset.defaultCharset());
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to write output file: " + outputPath(), e);
+        }
+    }
+
+    private String runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
         Compiler compiler = new Compiler();
         Result result = compiler.compile(externs, inputs, options);
 
         if (!result.success) {
             for (JSError e : result.errors) {
-                System.out.println("ERROR: " + e.toString());
+                logger.error(e.toString());
             }
-
             throw new RuntimeException("Failed to compile closure");
         }
 
         for (JSError e : result.warnings) {
-            System.out.println("Warnings: " + e.toString());
+            logger.warn("Warnings: " + e.toString());
         }
-
-        String compressedJs = compiler.toSource();
-        System.out.println("Compressed JS: \n\n" + compressedJs);
-
-/*        Closure closureCompiler = new Closure((BuildLog) buildContext.getConfig());
-        boolean success = closureCompiler.compile(
-                CompilationLevel.ADVANCED_OPTIMIZATIONS,
-                DependencyOptions.DependencyMode.PRUNE,
-                CompilerOptions.LanguageMode.ECMASCRIPT_NEXT,
-                js,
-                outputPath().toFile(),
-                List.of(),
-                Map.of(),
-                List.of(),
-                Optional.empty(),
-                true,
-                true,
-                true,
-                false,
-                "BROWSER",
-                "test.js",
-                extra
-        );
-
-        if (!success) {
-            throw new RuntimeException("Closure compilation failed");
-        }*/
+        return compiler.toSource();
     }
 
-
-    private Collection<Dependency> getAllDependencies() {
-        Set<Dependency> processed = new HashSet<>();
-        Set<Dependency> result = new HashSet<>();
-        Queue<Dependency> queue = new LinkedList<>();
-        queue.add(dependency);
-        while (!queue.isEmpty()) {
-            Dependency current = queue.poll();
-            if (!processed.contains(current)) {
-                result.add(current);
-                processed.add(current);
-                queue.addAll(current.getDependencies());
-            }
-        }
-        return result;
-    }
-
-    private void extracted(File zip) {
-        try (ZipFile zipFile = new ZipFile(zip)) {
-            zipFile.stream().forEach(entry -> {
-                try {
-                    File outFile = outputPath().resolve(entry.getName()).toFile();
-                    if (entry.isDirectory()) {
-                        outFile.mkdirs();
-                    } else {
-                        outFile.getParentFile().mkdirs();
-                        try (InputStream is = zipFile.getInputStream(entry);
-                             OutputStream os = new FileOutputStream(outFile)) {
-                            is.transferTo(os);
-                        }
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to unzip file " + zip + " at dependency " + dependency.key(), e);
-        }
-    }
 
     private InputStream getExternsFromClassPath() {
         InputStream result = getClass().getClassLoader().getResourceAsStream("externs.zip");
@@ -234,8 +205,7 @@ public class ClosureTask extends TaskInput {
         return result;
     }
 
-    public static List<SourceFile> fromZipInput(
-            String zipName, InputStream input, Charset inputCharset) throws IOException {
+    public List<SourceFile> fromZipInput(InputStream input, Charset inputCharset) throws IOException {
         List<SourceFile> sourceFiles = new ArrayList<>();
 
         try (ZipInputStream in = new ZipInputStream(input, inputCharset)) {
@@ -253,7 +223,7 @@ public class ClosureTask extends TaskInput {
         return sourceFiles;
     }
 
-    private static String readEntryToString(InputStream in, Charset charset) throws IOException {
+    private String readEntryToString(InputStream in, Charset charset) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] tmp = new byte[4096];
         int n;
@@ -261,5 +231,24 @@ public class ClosureTask extends TaskInput {
             buffer.write(tmp, 0, n);
         }
         return buffer.toString(charset);
+    }
+
+    public Map<String, List<String>> mapFromInputs(Collection<FileEntry> inputs) {
+        return inputs.stream()
+                .collect(Collectors.groupingBy(
+                        c -> c.getParentPath().toString(),
+                        Collectors.mapping(c -> c.getAbsolutePath().toString(), Collectors.toUnmodifiableList())
+                ));
+    }
+
+    private Path extractPublicResourcePath(Path p) {
+        int publicIndex = -1;
+        for (int i = 0; i < p.getNameCount(); i++) {
+            if (p.getName(i).toString().equals("public")) {
+                publicIndex = i;
+                break;
+            }
+        }
+        return p.subpath(publicIndex + 1, p.getNameCount());
     }
 }

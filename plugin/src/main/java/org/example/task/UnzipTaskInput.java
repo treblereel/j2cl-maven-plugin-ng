@@ -1,21 +1,17 @@
 package org.example.task;
 
 import org.example.context.BuildContext;
+import org.example.log.BuildLog;
 import org.example.model.Dependency;
 import org.example.utils.FileUtils;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Path;
-import java.util.zip.ZipFile;
 
 public class UnzipTaskInput extends TaskInput {
 
-    public UnzipTaskInput(Dependency dep, BuildContext buildContext) {
-        super(dep, buildContext);
+    public UnzipTaskInput(Dependency dep, BuildContext buildContext, BuildLog logger) {
+        super(dep, buildContext, logger);
     }
 
     @Override
@@ -25,14 +21,8 @@ public class UnzipTaskInput extends TaskInput {
 
     @Override
     public void process() {
-
-
         if (!dependency.isSourceMapped()) {
-            System.out.println("               Unzipping " + dependency.key() + " " + dependency.bytecodeJar() + " " + dependency.getClass().getCanonicalName());
-            extracted(dependency.bytecodeJar());
-            if (dependency.isJsZip()) {
-                System.out.println("JSZIP: " + dependency.key() + " " + dependency.key());
-            }
+            FileUtils.extractZip(dependency.bytecodeJar(), outputPath(), dependency);
         } else {
             try {
                 Path sourcePath = dependency.asMavenProject().getBasedir().toPath().resolve("src/main/java");
@@ -46,26 +36,4 @@ public class UnzipTaskInput extends TaskInput {
         }
     }
 
-    private void extracted(File jar) {
-        try (ZipFile zipFile = new ZipFile(jar)) {
-            zipFile.stream().forEach(entry -> {
-                try {
-                    File outFile = outputPath().resolve(entry.getName()).toFile();
-                    if (entry.isDirectory()) {
-                        outFile.mkdirs();
-                    } else {
-                        outFile.getParentFile().mkdirs();
-                        try (InputStream is = zipFile.getInputStream(entry);
-                             OutputStream os = new FileOutputStream(outFile)) {
-                            is.transferTo(os);
-                        }
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to unzip file " + jar + " at dependency " + dependency.key(), e);
-        }
-    }
 }

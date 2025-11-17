@@ -3,25 +3,83 @@ package org.example.config;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.logging.Log;
 import org.example.log.BuildLog;
+import org.example.xbt.TranslationsFileConfig;
 
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
-public class BuildConfig implements Config, BuildLog {
+public class BuildConfig implements Config {
 
 
     private final List<File> extraClasspath;
-    private final Log log;
     private final File bootstrapClasspath;
     private final List<Artifact> extraJsZips;
+    private final String initialScriptFilename;
+    private final String webappDirectory;
+    private final String compilationLevel;
+    private final Map<String, String> defines;
+    private final boolean rewritePolyfills;
+    private final TranslationsFileConfig translationsFile;
+    private final boolean enableSourcemaps;
+    private final Map<String, String> annotationProcessorsArgs;
 
-    public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath, Log log) {
+    public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath,
+                       String initialScriptFilename, String webappDirectory, String compilationLevel, Map<String, String> defines,
+                       boolean rewritePolyfills, TranslationsFileConfig translationsFile, boolean enableSourcemaps,
+                       Map<String, String> annotationProcessorsArgs) {
         this.extraClasspath = extraClasspath;
         this.extraJsZips = extraJsZips;
         this.bootstrapClasspath = bootstrapClasspath;
-        this.log = log;
+        this.initialScriptFilename = initialScriptFilename;
+        this.webappDirectory = webappDirectory;
+        this.compilationLevel = compilationLevel;
+        this.defines = defines;
+        this.rewritePolyfills = rewritePolyfills;
+        this.translationsFile = translationsFile;
+        this.enableSourcemaps = enableSourcemaps;
+        this.annotationProcessorsArgs = annotationProcessorsArgs;
     }
 
+    @Override
+    public String initialScriptFilename() {
+        return initialScriptFilename;
+    }
+
+    @Override
+    public String webappDirectory() {
+        return webappDirectory;
+    }
+
+    @Override
+    public String compilationLevel() {
+        return compilationLevel;
+    }
+
+    @Override
+    public Map<String, String> defines() {
+        return defines;
+    }
+
+    @Override
+    public boolean rewritePolyfills() {
+        return rewritePolyfills;
+    }
+
+    @Override
+    public TranslationsFileConfig translationsFile() {
+        return translationsFile;
+    }
+
+    @Override
+    public boolean enableSourcemaps() {
+        return enableSourcemaps;
+    }
+
+    @Override
+    public Map<String, String> annotationProcessorsArgs() {
+        return annotationProcessorsArgs;
+    }
 
     @Override
     public List<File> getExtraClasspath() {
@@ -30,55 +88,11 @@ public class BuildConfig implements Config, BuildLog {
 
     @Override
     public List<File> getJsZip() {
-        return extraJsZips.stream().map(m -> m.getFile()).toList();
+        return extraJsZips.stream().map(Artifact::getFile).toList();
     }
 
     @Override
     public File getBootstrapClasspath() {
         return bootstrapClasspath;
-    }
-
-    @Override
-    public void debug(String msg) {
-        log.debug(msg);
-    }
-
-    @Override
-    public void info(String msg) {
-        log.info(msg);
-    }
-
-    @Override
-    public void warn(String msg) {
-        log.warn(msg);
-    }
-
-    @Override
-    public void warn(String msg, Throwable t) {
-        log.warn(msg, t);
-    }
-
-    @Override
-    public void warn(Throwable t) {
-        log.warn(t);
-    }
-
-    @Override
-    public void error(String msg) {
-        log.error(msg);
-    }
-
-    @Override
-    public void error(String msg, Throwable t) {
-        log.error(msg, t);
-    }
-
-    @Override
-    public void error(Throwable t) {
-        log.error(t);
-    }
-
-    public List<Artifact> getExtraJsZips() {
-        return extraJsZips;
     }
 }

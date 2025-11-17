@@ -1,7 +1,6 @@
 package org.example.model;
 
 import org.apache.maven.project.MavenProject;
-import org.eclipse.aether.artifact.Artifact;
 import org.example.context.ArtifactResolver;
 
 import java.io.File;

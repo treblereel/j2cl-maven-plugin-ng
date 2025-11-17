@@ -33,8 +33,8 @@ public class ByteCodeTask extends TaskInput {
     public static final PathMatcher APT_PROCESSOR = p ->
             p.equals(Paths.get("META-INF", "services", "javax.annotation.processing.Processor"));
 
-    public ByteCodeTask(Dependency dep, BuildContext buildContext) {
-        super(dep, buildContext);
+    public ByteCodeTask(Dependency dep, BuildContext buildContext, BuildLog logger) {
+        super(dep, buildContext, logger);
     }
 
     public OutputTypes getOutputTypes() {
@@ -89,7 +89,7 @@ public class ByteCodeTask extends TaskInput {
                             //.setReducedClasspathMode(TurbineOptions.ReducedClasspathMode.JAVABUILDER_REDUCED)
                             .build());
             result.processorStatistics().processingTime().forEach((k, d) -> {
-                ((BuildLog) buildContext.getConfig()).debug("Turbine " + k + " took " + d.toMillis() + "ms");
+                logger.debug("Turbine " + k + " took " + d.toMillis() + "ms");
             });
 
         } catch (TurbineError e) {
