@@ -28,9 +28,7 @@ public class ClosureTask extends TaskInput {
      * optional directory to offer externs within a jar
      */
     private static final Path META_INF_EXTERNS = META_INF.resolve("externs");
-
     private static final Path PUBLIC = Paths.get("public");
-
     private static final PathMatcher JS_SOURCES = withSuffix(".js");
 
     private static final PathMatcher XTB = withSuffix(".xtb");
@@ -133,6 +131,7 @@ public class ClosureTask extends TaskInput {
         extra.forEach(f -> {
             try {
                 inputs.addAll(SourceFile.fromZipFile(f.toPath().toString(), Charset.defaultCharset()));
+                System.out.println("Adding extra JS input from: " + f);
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read extra files from " + f, e);
             }

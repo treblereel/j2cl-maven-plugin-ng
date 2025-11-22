@@ -23,7 +23,7 @@ import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.log.MavenBuildLog;
 import org.example.model.Dependency;
-import org.example.model.Project;
+import org.example.model.ReactorProject;
 import org.example.xbt.TranslationsFileConfig;
 
 import java.io.File;
@@ -242,7 +242,7 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 "compile"
         );
 
-        Project project = new Project(this.project, artifactResolver, dependencies);
+        ReactorProject project = new ReactorProject(this.project, artifactResolver, dependencies);
 
         process(project, buildContext, buildLog);
     }
@@ -272,5 +272,5 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         }
     }
 
-    protected abstract void process(Project project, BuildContext buildContext, BuildLog buildLog);
+    protected abstract void process(ReactorProject project, BuildContext buildContext, BuildLog buildLog);
 }

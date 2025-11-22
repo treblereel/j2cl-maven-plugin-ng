@@ -4,14 +4,15 @@ import org.apache.maven.project.MavenProject;
 import org.example.context.ArtifactResolver;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
-public class Project extends Dependency {
+public class ReactorProject extends Dependency {
 
   private final List<Dependency> dependencies;
   private final MavenProject project;
 
-  public Project(MavenProject project, ArtifactResolver artifactResolver, List<Dependency> dependencies) {
+  public ReactorProject(MavenProject project, ArtifactResolver artifactResolver, List<Dependency> dependencies) {
     super(null, artifactResolver);
     this.project = project;
     this.dependencies = dependencies;
@@ -44,6 +45,11 @@ public class Project extends Dependency {
   @Override
   public File sourcesJar() {
     return new File(project.getBasedir(), "src/main/java");
+  }
+
+  public List<Path> getSourcePaths() {
+    return List.of(asMavenProject().getBasedir().toPath().resolve("src/main/java"),
+            asMavenProject().getBasedir().toPath().resolve("src/main/resources"));
   }
 
   public String key() {
