@@ -6,6 +6,7 @@ import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
 import org.example.tools.ClosureCompilerWarningsGuard;
+import org.example.tools.ClosureLibrary;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -126,19 +127,19 @@ public class ClosureTask extends TaskInput {
             throw new RuntimeException("Unable to read externs from classpath", e);
         }
 
-        selfJsOutPut.files().forEach(f -> {
-            System.out.println("Adding externs: " + f.getSourcePath());
-        });
-
         List<SourceFile> inputs = new ArrayList<>();
         js.forEach((k, v) -> v.forEach(s -> inputs.add(SourceFile.fromFile(s))));
+
         extra.forEach(f -> {
             try {
                 inputs.addAll(SourceFile.fromZipFile(f.toPath().toString(), Charset.defaultCharset()));
-                System.out.println("Adding extra JS input from: " + f);
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read extra files from " + f, e);
             }
+        });
+
+        ClosureLibrary.get().forEach((path, content) -> {
+            inputs.add(SourceFile.fromCode(path, content));
         });
 
         String compressedJs = runCompiler(externs, inputs, options);
@@ -215,7 +216,7 @@ public class ClosureTask extends TaskInput {
             ZipEntry zipEntry;
             while ((zipEntry = in.getNextEntry()) != null) {
                 String entryName = zipEntry.getName();
-                if (!entryName.endsWith(".js")) { // Only accept js files
+                if (!entryName.endsWith(".js")) {
                     continue;
                 }
                 String code = readEntryToString(in, inputCharset);

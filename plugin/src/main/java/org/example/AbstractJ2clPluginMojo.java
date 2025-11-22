@@ -208,8 +208,8 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         );
 
         List<Artifact> extraJsZips = Arrays.asList(
-                getMavenArtifactWithCoords(jreJsZip),
-                getMavenArtifactWithCoords(bootstrapJsZip)
+                getMavenArtifactWithCoords(jreJsZip)
+                //getMavenArtifactWithCoords(bootstrapJsZip)
         );
 
         File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);

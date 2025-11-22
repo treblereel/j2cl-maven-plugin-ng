@@ -4,7 +4,7 @@ import com.google.j2cl.common.SourceUtils;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
-import org.example.utils.GwtIncompatiblePreprocessor;
+import org.example.tools.GwtIncompatiblePreprocessor;
 
 import java.nio.file.PathMatcher;
 import java.util.List;
