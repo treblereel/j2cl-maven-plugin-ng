@@ -9,6 +9,7 @@ import org.example.tools.ClosureCompilerWarningsGuard;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,6 +41,9 @@ public class ClosureTask extends TaskInput {
     private static final PathMatcher IN_META_INF_RESOURCES = path -> path.startsWith(META_INF_RESOURCES);
 
     private static final PathMatcher IN_PUBLIC = path -> StreamSupport.stream(path.spliterator(), false).anyMatch(PUBLIC::equals);
+
+
+    private static final List<String> GOOG_LIBRARRY = List.of("lib/base.js", "lib/goog.js", "lib/reflect.js");
 
     /**
      * JS files that closure should use as type information
@@ -249,5 +253,23 @@ public class ClosureTask extends TaskInput {
             }
         }
         return p.subpath(publicIndex + 1, p.getNameCount());
+    }
+
+
+    private Map<String, String> lookupGoogLibs() {
+        Map<String, String> results = new HashMap<>();
+
+        for(String  url:  GOOG_LIBRARRY) {
+            try(InputStream inputStream = getClass().getClassLoader().getResourceAsStream(url)) {
+                if(inputStream == null) {
+                    throw new RuntimeException("Could not find " + url);
+                }
+                String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                results.put(url, content);
+            } catch (IOException e) {
+                throw new RuntimeException("Error reading " + url, e);
+            }
+        }
+        return results;
     }
 }
