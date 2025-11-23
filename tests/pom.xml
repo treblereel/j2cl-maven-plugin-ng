@@ -54,6 +54,7 @@
                         <goog.LOCALE>ru_RU</goog.LOCALE>
                         <holder.value>TEST</holder.value>
                     </defines>
+                    <compilationLevel>SIMPLE</compilationLevel>
                 </configuration>
             </plugin>
             <plugin>
@@ -70,7 +71,6 @@
                             <version>0.9</version>
                         </path>
                     </annotationProcessorPaths>
-
                     <compilerArgs>
                         <arg>-Amapstruct.defaultComponentModel=cdi</arg>
                     </compilerArgs>

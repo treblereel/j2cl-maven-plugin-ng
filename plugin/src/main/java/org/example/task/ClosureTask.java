@@ -102,7 +102,7 @@ public class ClosureTask extends TaskInput {
 
         List<File> extra = buildContext.getConfig().getJsZip();
 
-        Map<String, List<String>> js = mapFromInputs(
+        Map<String, List<String>> javascriptInputs = mapFromInputs(
                 Stream.of(selfJsOutPutUnzipped.filter(PLAIN_JS_SOURCES).files().stream(),
                                 selfJsOutPut.filter(PLAIN_JS_SOURCES).files().stream(),
                                 depsTranspiled.files().stream(),
@@ -110,27 +110,6 @@ public class ClosureTask extends TaskInput {
                         ).flatMap(f -> f)
                         .filter(f -> PLAIN_JS_SOURCES.matches(f.getSourcePath()))
                         .toList());
-
-        CompilerOptions options = new CompilerOptions();
-        options.setJ2clMinifierEnabled(true);
-        options.setJ2clPass(CompilerOptions.J2clPassMode.AUTO);
-        options.setEnvironment(CompilerOptions.Environment.BROWSER);
-        CompilationLevel.ADVANCED_OPTIMIZATIONS
-                .setOptionsForCompilationLevel(options);
-        options.setClosurePass(true);
-        options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
-        options.addWarningsGuard(new ClosureCompilerWarningsGuard());
-
-        options.setSourceMapOutputPath("dist/app.min.js.map");
-        options.setSourceMapIncludeSourcesContent(true);
-        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
-        options.setSourceMapFormat(SourceMap.Format.V3);
-        options.setDefineReplacements(buildContext.getConfig().defines());
-
-        buildContext.getConfig().defines().forEach((k, v) -> {
-            System.out.println("Define: " + k + " = " + v);
-        });
-
 
         List<SourceFile> externs = new ArrayList<>();
         try {
@@ -141,7 +120,7 @@ public class ClosureTask extends TaskInput {
         }
 
         List<SourceFile> inputs = new ArrayList<>();
-        js.forEach((k, v) -> v.forEach(s -> inputs.add(SourceFile.fromFile(s))));
+        javascriptInputs.forEach((k, v) -> v.forEach(s -> inputs.add(SourceFile.fromFile(s))));
 
         extra.forEach(f -> {
             try {
@@ -150,6 +129,23 @@ public class ClosureTask extends TaskInput {
                 throw new RuntimeException("Unable to read extra files from " + f, e);
             }
         });
+
+
+        CompilerOptions options = new CompilerOptions();
+        options.setJ2clMinifierEnabled(true);
+        options.setJ2clPass(CompilerOptions.J2clPassMode.AUTO);
+        options.setEnvironment(CompilerOptions.Environment.BROWSER);
+        options.setClosurePass(true);
+        options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
+        options.addWarningsGuard(new ClosureCompilerWarningsGuard());
+
+        options.setSourceMapOutputPath("dist/app.min.js.map");
+        options.setSourceMapIncludeSourcesContent(true);
+        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
+        options.setSourceMapFormat(SourceMap.Format.V3);
+        options.setDefineReplacements(buildContext.getConfig().defines());
+
+        setCompilationLevel(options);
 
         ClosureLibrary.get().forEach((path, content) -> {
             inputs.add(SourceFile.fromCode(path, content));
@@ -267,5 +263,12 @@ public class ClosureTask extends TaskInput {
             }
         }
         return p.subpath(publicIndex + 1, p.getNameCount());
+    }
+
+    private void setCompilationLevel(CompilerOptions options) {
+        CompilationLevel level = CompilationLevel.fromString(buildContext.getConfig().compilationLevel());
+        level.setOptionsForCompilationLevel(options);
+
+        System.out.println("Using compilation level: " + level);
     }
 }
