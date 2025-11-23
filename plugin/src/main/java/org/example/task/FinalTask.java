@@ -34,7 +34,7 @@ public class FinalTask extends TaskInput {
         }
 
         try {
-            List<FileEntry> files = output.filter(JS_SOURCES).files();
+            List<FileEntry> files = output.files();
             for (FileEntry fileEntry : files) {
                 Files.createDirectories(webappDirectory.resolve(fileEntry.getSourcePath()).getParent());
                 Files.copy(fileEntry.getAbsolutePath(), webappDirectory.resolve(fileEntry.getSourcePath()), StandardCopyOption.REPLACE_EXISTING);

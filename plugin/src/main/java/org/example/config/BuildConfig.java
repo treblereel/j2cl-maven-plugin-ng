@@ -18,14 +18,14 @@ public class BuildConfig implements Config {
     private final String initialScriptFilename;
     private final String webappDirectory;
     private final String compilationLevel;
-    private final Map<String, String> defines;
+    private final Map<String, Object> defines;
     private final boolean rewritePolyfills;
     private final TranslationsFileConfig translationsFile;
     private final boolean enableSourcemaps;
     private final Map<String, String> annotationProcessorsArgs;
 
     public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath,
-                       String initialScriptFilename, String webappDirectory, String compilationLevel, Map<String, String> defines,
+                       String initialScriptFilename, String webappDirectory, String compilationLevel, Map<String, Object> defines,
                        boolean rewritePolyfills, TranslationsFileConfig translationsFile, boolean enableSourcemaps,
                        Map<String, String> annotationProcessorsArgs) {
         this.extraClasspath = extraClasspath;
@@ -57,7 +57,7 @@ public class BuildConfig implements Config {
     }
 
     @Override
-    public Map<String, String> defines() {
+    public Map<String, Object> defines() {
         return defines;
     }
 

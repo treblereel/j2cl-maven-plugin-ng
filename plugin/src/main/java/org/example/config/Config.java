@@ -14,7 +14,7 @@ public interface Config {
 
     String compilationLevel();
 
-    Map<String, String> defines();
+    Map<String, Object> defines();
 
     boolean rewritePolyfills();
 

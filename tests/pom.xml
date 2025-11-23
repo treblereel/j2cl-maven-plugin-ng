@@ -49,6 +49,12 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <defines>
+                        <goog.LOCALE>ru_RU</goog.LOCALE>
+                        <holder.value>TEST</holder.value>
+                    </defines>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

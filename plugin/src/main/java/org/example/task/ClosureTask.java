@@ -93,7 +93,8 @@ public class ClosureTask extends TaskInput {
 
     @Override
     public void process() {
-        TaskOutput selfJsOutPut = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
+        TaskOutput selfJsOutPutUnzipped = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
+        TaskOutput selfJsOutPut = input(dependency, OutputTypes.TRANSPILED_JS);
 
         Collection<Dependency> allDependencies = getFlattenDependencies();
         TaskOutput depsUnzipped = input(allDependencies, OutputTypes.UNZIPPED_DEPENDENCIES);
@@ -102,7 +103,8 @@ public class ClosureTask extends TaskInput {
         List<File> extra = buildContext.getConfig().getJsZip();
 
         Map<String, List<String>> js = mapFromInputs(
-                Stream.of(selfJsOutPut.filter(PLAIN_JS_SOURCES).files().stream(),
+                Stream.of(selfJsOutPutUnzipped.filter(PLAIN_JS_SOURCES).files().stream(),
+                                selfJsOutPut.filter(PLAIN_JS_SOURCES).files().stream(),
                                 depsTranspiled.files().stream(),
                                 depsUnzipped.files().stream()
                         ).flatMap(f -> f)
@@ -118,6 +120,17 @@ public class ClosureTask extends TaskInput {
         options.setClosurePass(true);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.addWarningsGuard(new ClosureCompilerWarningsGuard());
+
+        options.setSourceMapOutputPath("dist/app.min.js.map");
+        options.setSourceMapIncludeSourcesContent(true);
+        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
+        options.setSourceMapFormat(SourceMap.Format.V3);
+        options.setDefineReplacements(buildContext.getConfig().defines());
+
+        buildContext.getConfig().defines().forEach((k, v) -> {
+            System.out.println("Define: " + k + " = " + v);
+        });
+
 
         List<SourceFile> externs = new ArrayList<>();
         try {
@@ -146,26 +159,26 @@ public class ClosureTask extends TaskInput {
         Path outPutFolder = outputPath().resolve(buildContext.getConfig().initialScriptFilename()).getParent();
 
         writeJSScriptToDisk(outPutFolder, compressedJs);
-        copyPublicResources(selfJsOutPut, depsUnzipped, outPutFolder);
+        copyPublicResources(selfJsOutPutUnzipped, depsUnzipped, outPutFolder);
     }
 
-    private void copyPublicResources(TaskOutput selfJsOutPut,TaskOutput depsUnzipped, Path outPutFolder) {
-            List<FileEntry> resources = Stream.concat(
-                    selfJsOutPut.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream(),
-                    depsUnzipped.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream()
-            ).toList();
+    private void copyPublicResources(TaskOutput selfJsOutPut, TaskOutput depsUnzipped, Path outPutFolder) {
+        List<FileEntry> resources = Stream.concat(
+                selfJsOutPut.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream(),
+                depsUnzipped.filter(IN_META_INF_RESOURCES, IN_PUBLIC).files().stream()
+        ).toList();
 
-            try {
-                for (FileEntry resource : resources) {
-                    Path outPutPath = outPutFolder.resolve(extractPublicResourcePath(resource.getSourcePath()));
-                    System.out.println("Copying resource: " + resource.getAbsolutePath() + " to " + outPutPath);
-                    Files.createDirectories(outPutPath.getParent());
-                    Files.copy(resource.getAbsolutePath(), outPutPath, StandardCopyOption.REPLACE_EXISTING);
-                }
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
-                throw new RuntimeException("Unable to copy resources to output directory: " + outPutFolder, e);
+        try {
+            for (FileEntry resource : resources) {
+                Path outPutPath = outPutFolder.resolve(extractPublicResourcePath(resource.getSourcePath()));
+                System.out.println("Copying resource: " + resource.getAbsolutePath() + " to " + outPutPath);
+                Files.createDirectories(outPutPath.getParent());
+                Files.copy(resource.getAbsolutePath(), outPutPath, StandardCopyOption.REPLACE_EXISTING);
             }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+            throw new RuntimeException("Unable to copy resources to output directory: " + outPutFolder, e);
+        }
     }
 
     private void writeJSScriptToDisk(Path outPutFolder, String compressedJs) {
@@ -254,23 +267,5 @@ public class ClosureTask extends TaskInput {
             }
         }
         return p.subpath(publicIndex + 1, p.getNameCount());
-    }
-
-
-    private Map<String, String> lookupGoogLibs() {
-        Map<String, String> results = new HashMap<>();
-
-        for(String  url:  GOOG_LIBRARRY) {
-            try(InputStream inputStream = getClass().getClassLoader().getResourceAsStream(url)) {
-                if(inputStream == null) {
-                    throw new RuntimeException("Could not find " + url);
-                }
-                String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-                results.put(url, content);
-            } catch (IOException e) {
-                throw new RuntimeException("Error reading " + url, e);
-            }
-        }
-        return results;
     }
 }

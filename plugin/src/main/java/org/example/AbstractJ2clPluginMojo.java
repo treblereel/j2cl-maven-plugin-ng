@@ -92,7 +92,7 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
      * In the context of J2CL and Java, this can be used to define values for system properties.
      */
     @Parameter
-    protected Map<String, String> defines = new TreeMap<>();
+    protected Map<String, Object> defines = new TreeMap<>();
 
     /**
      * Closure flag: "Rewrite ES6 library calls to use polyfills provided by the compiler's runtime."
