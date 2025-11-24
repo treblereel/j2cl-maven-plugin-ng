@@ -5,7 +5,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
-import org.example.model.ReactorProject;
+import org.example.model.ReactorDependency;
 import org.example.task.FinalTask;
 
 
@@ -16,7 +16,7 @@ import org.example.task.FinalTask;
 )
 public class CompileJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
-    protected void process(ReactorProject project, BuildContext buildContext, BuildLog buildLog) {
+    protected void process(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         try {
             new FinalTask(project, buildContext, buildLog).runTask().join();
         } catch (Exception e) {

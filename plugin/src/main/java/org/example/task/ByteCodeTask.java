@@ -9,6 +9,7 @@ import org.apache.maven.project.MavenProject;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
+import org.example.model.ReactorDependency;
 import org.example.tools.AptPath;
 
 import java.io.File;
@@ -61,7 +62,7 @@ public class ByteCodeTask extends TaskInput {
         List<String> annotationProcessorNames = new ArrayList<>();
 
         if (dependency.isSourceMapped()) {
-            MavenProject project = dependency.asMavenProject();
+            MavenProject project = ((ReactorDependency)dependency).getMavenProject();
             List<AptPath> aptPaths = buildContext.getAPTProcessorPaths(project);
             for (AptPath aptPath : aptPaths) {
                 moduleDependencies.add(aptPath.annotationProcessorFile().getAbsolutePath());

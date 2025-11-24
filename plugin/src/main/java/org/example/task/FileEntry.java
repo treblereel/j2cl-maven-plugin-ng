@@ -1,7 +1,5 @@
 package org.example.task;
 
-import org.example.model.Dependency;
-
 import java.nio.file.Path;
 
 public class FileEntry {

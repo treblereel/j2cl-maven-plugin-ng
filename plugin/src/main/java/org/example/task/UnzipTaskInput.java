@@ -3,11 +3,11 @@ package org.example.task;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
-import org.example.model.ReactorProject;
+import org.example.model.JarDependency;
+import org.example.model.ReactorDependency;
 import org.example.utils.FileUtils;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 public class UnzipTaskInput extends TaskInput {
 
@@ -23,9 +23,9 @@ public class UnzipTaskInput extends TaskInput {
   @Override
   public void process() {
     if (!dependency.isSourceMapped()) {
-      FileUtils.extractZip(dependency.bytecodeJar(), outputPath(), dependency);
+      FileUtils.extractZip(((JarDependency)dependency).bytecodeJar(), outputPath(), dependency);
     } else {
-      ((ReactorProject) dependency).getSourcePaths().forEach(resourcePath -> {
+      ((ReactorDependency) dependency).getSourcePaths().forEach(resourcePath -> {
         try {
           FileUtils.copyDirectory(resourcePath, outputPath());
         } catch (IOException e) {

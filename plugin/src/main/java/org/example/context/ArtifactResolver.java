@@ -1,9 +1,11 @@
 package org.example.context;
 
+import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.execution.ProjectDependencyGraph;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.*;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
@@ -17,76 +19,110 @@ import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.util.artifact.SubArtifact;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
+import org.example.model.JarDependency;
+import org.example.model.ReactorDependency;
 
 import java.io.File;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ArtifactResolver {
 
-    private final Map<String, String> defaultDependencyReplacement;
+    private final Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement;
+    private final MavenProject project;
     private final List<RemoteRepository> remoteRepos;
     private final RepositorySystemSession repoSession;
-    private final RepositorySystem repoSystem;
+    private final RepositorySystem repositorySystem;
     private final Set<MavenProject> reactorProjects;
     private final BuildLog logger;
+    private final ProjectDependencyGraph dependencyGraph;
+    private final ProjectBuilder projectBuilder;
+    private final MavenSession mavenSession;
 
-    public ArtifactResolver(RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
-                            MavenSession session, Map<String, String> defaultDependencyReplacement, BuildLog logger) {
-        this.repoSystem = repoSystem;
+    public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
+                            MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement, BuildLog logger) {
+        this.project = project;
+        this.repositorySystem = repoSystem;
         this.remoteRepos = remoteRepos;
         this.repoSession = repoSession;
+        this.mavenSession = session;
         this.reactorProjects = new HashSet<>(session.getAllProjects());
+        this.projectBuilder = projectBuilder;
         this.defaultDependencyReplacement = defaultDependencyReplacement;
+        this.dependencyGraph = session.getProjectDependencyGraph();
         this.logger = logger;
     }
 
-    public List<Dependency> getDependencies(org.eclipse.aether.graph.Dependency dep) {
-        return getDependencies(
-                dep.getArtifact().getGroupId(),
-                dep.getArtifact().getArtifactId(),
-                dep.getArtifact().getVersion(),
-                dep.getScope()
-        );
+    public Collection<Dependency> getDependencies(org.apache.maven.artifact.Artifact artifact) {
+        ProjectBuildingRequest req =
+                new DefaultProjectBuildingRequest(mavenSession.getProjectBuildingRequest());
+        req.setResolveDependencies(true);
+        req.setRepositorySession(mavenSession.getRepositorySession());
+        try {
+            MavenProject dependencyProject = projectBuilder.build(artifact, req).getProject();
+
+            return dependencyProject.getArtifacts().stream()
+                    .map(a -> {
+                        Dependency dependency = new JarDependency(a, this);
+                        String key = dependency.groupId() + ":" + dependency.artifactId();
+                        if (defaultDependencyReplacement.containsKey(key)) {
+                            org.apache.maven.artifact.Artifact replacement = defaultDependencyReplacement.get(key);
+                            if (replacement == null) {
+                                return null;
+                            }
+                            var resolved = getDependency(replacement);
+                            return new JarDependency(resolved, this);
+                        }
+                        return new JarDependency(a, this);
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        } catch (ProjectBuildingException e) {
+            throw new RuntimeException("Failed to build project for artifact " + artifact, e);
+        }
     }
 
-    public List<Dependency> getDependencies(String groupId, String artifactId, String version, String scope) {
-        String coords = String.format("%s:%s:%s", groupId, artifactId, version);
-        var artifact = new DefaultArtifact(coords);
-        var request = new CollectRequest();
-        request.setRoot(new org.eclipse.aether.graph.Dependency(artifact, scope));
-        request.setRepositories(remoteRepos);
+    public org.apache.maven.artifact.Artifact getDependency(org.apache.maven.artifact.Artifact mavenArtifact) {
+        Artifact aetherArtifact = new DefaultArtifact(
+                mavenArtifact.getGroupId(),
+                mavenArtifact.getArtifactId(),
+                mavenArtifact.getClassifier(),
+                mavenArtifact.getType(),
+                mavenArtifact.getVersion()
+        );
+
+        ArtifactRequest request = new ArtifactRequest();
+        request.setArtifact(aetherArtifact);
+        request.setRepositories(project.getRemoteProjectRepositories());
+
         try {
-            DependencyNode root = repoSystem.collectDependencies(repoSession, request).getRoot();
-            return root.getChildren()
-                    .stream()
-                    .filter(d -> {
-                        String depCoords = String.format("%s:%s",
-                                d.getDependency().getArtifact().getGroupId(),
-                                d.getDependency().getArtifact().getArtifactId());
-                        return !(defaultDependencyReplacement.containsKey(depCoords)
-                                && defaultDependencyReplacement.get(depCoords) == null);
-                    })
-                    .filter(d -> !"provided".equals(d.getDependency().getScope()))
-                    .filter(d -> !"test".equals(d.getDependency().getScope()))
-                    .map(d -> {
-                        Dependency dependency = new Dependency(d.getDependency(), this);
-                        String depCoords = String.format("%s:%s", dependency.groupId(), dependency.artifactId());
-                        if (defaultDependencyReplacement.containsKey(depCoords)) {
-                            String replacementVersion = defaultDependencyReplacement.get(depCoords);
-                            logger.info("Replacing dependency " + depCoords + " with " + replacementVersion);
-                            org.eclipse.aether.graph.Dependency replacement = getDependencyWithMavenCoords(replacementVersion);
-                            dependency.setDependency(replacement);
-                        }
-                        return dependency;
-                    })
-                    .collect(Collectors.toList());
+            ArtifactResult result = repositorySystem.resolveArtifact(repoSession, request);
+            Artifact resolved = result.getArtifact();
+
+            org.apache.maven.artifact.Artifact resolvedMavenArtifact =
+                    new org.apache.maven.artifact.DefaultArtifact(
+                            resolved.getGroupId(),
+                            resolved.getArtifactId(),
+                            resolved.getVersion(),
+                            mavenArtifact.getScope(),
+                            resolved.getExtension(),
+                            resolved.getClassifier(),
+                            mavenArtifact.getArtifactHandler()
+                    );
+            resolvedMavenArtifact.setFile(resolved.getFile());
+
+            return resolvedMavenArtifact;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to resolve " + mavenArtifact, e);
         }
+    }
+
+    public List<ReactorDependency> getReactorDependencies(MavenProject project) {
+        return dependencyGraph.getUpstreamProjects(project, false)
+                .stream()
+                .filter(dependency -> dependency.getPackaging().equals("jar"))
+                .map(d -> new ReactorDependency(d, this))
+                .collect(Collectors.toList());
     }
 
     public boolean isInReactor(Artifact artifact) {
@@ -117,7 +153,7 @@ public class ArtifactResolver {
                 .setArtifact(new DefaultArtifact(coords));
         try {
             org.eclipse.aether.graph.Dependency dependency =
-                    new org.eclipse.aether.graph.Dependency(repoSystem.resolveArtifact(repoSession, request).getArtifact(),
+                    new org.eclipse.aether.graph.Dependency(repositorySystem.resolveArtifact(repoSession, request).getArtifact(),
                             "compile");
             return dependency;
         } catch (ArtifactResolutionException e) {
@@ -131,7 +167,7 @@ public class ArtifactResolver {
         req.setRepositories(remoteRepos);
 
         try {
-            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
+            ArtifactResult res = repositorySystem.resolveArtifact(repoSession, req);
             Artifact resolved = res.getArtifact();
             File file = resolved.getFile();
             if (file == null || !file.isFile()) {
@@ -153,7 +189,7 @@ public class ArtifactResolver {
                 .setRepositories(remoteRepos);
 
         try {
-            ArtifactResult res = repoSystem.resolveArtifact(repoSession, req);
+            ArtifactResult res = repositorySystem.resolveArtifact(repoSession, req);
             File file = res.getArtifact().getFile();
             if (file == null || !file.isFile()) {
                 throw new IllegalStateException("Resolved sources has no file: " + res.getArtifact());
@@ -175,26 +211,10 @@ public class ArtifactResolver {
                 .setArtifact(new DefaultArtifact(coords));
 
         try {
-            return repoSystem.resolveArtifact(repoSession, request).getArtifact().getFile();
+            return repositorySystem.resolveArtifact(repoSession, request).getArtifact().getFile();
         } catch (ArtifactResolutionException e) {
             throw new MojoExecutionException("Failed to find artifact " + coords, e);
         }
     }
 
-    public static org.eclipse.aether.graph.Dependency toAetherDependency(Artifact mavenArtifact) {
-        String coords = String.format(
-                "%s:%s:%s:%s:%s",
-                mavenArtifact.getGroupId(),
-                mavenArtifact.getArtifactId(),
-                mavenArtifact.getExtension(),
-                mavenArtifact.getClassifier(),
-                mavenArtifact.getVersion()
-        );
-
-        org.eclipse.aether.artifact.Artifact aetherArtifact =
-                new DefaultArtifact(coords)
-                        .setFile(mavenArtifact.getFile());
-
-        return new org.eclipse.aether.graph.Dependency(aetherArtifact, "compile");
-    }
 }

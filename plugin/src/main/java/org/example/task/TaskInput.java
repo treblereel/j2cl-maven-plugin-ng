@@ -5,9 +5,8 @@ import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.BuildStatus;
 import org.example.model.Dependency;
-import org.example.model.ReactorProject;
+import org.example.model.ReactorDependency;
 import org.example.tools.Hashing;
-import org.example.utils.FileUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -192,7 +191,7 @@ public abstract class TaskInput {
             try {
                 Path marker = Files.createFile(successMarker);
                 if (dependency.isSourceMapped()) {
-                    String hash = Hashing.hash(((ReactorProject) dependency).getSourcePaths());
+                    String hash = Hashing.hash(((ReactorDependency) dependency).getSourcePaths());
                     BuildStatus status = new BuildStatus();
                     Set<OutputTypes> outputTypesSet = new HashSet<>();
                     outputTypesSet.add(getOutputTypes());
@@ -225,7 +224,7 @@ public abstract class TaskInput {
                 try {
                     String json = Files.readString(successMarker);
                     BuildStatus status = gson.fromJson(json, BuildStatus.class);
-                    String currentHash = Hashing.hash(((ReactorProject) dependency).getSourcePaths());
+                    String currentHash = Hashing.hash(((ReactorDependency) dependency).getSourcePaths());
                     return status.getHash().equals(currentHash) && status.getOutputTypes().contains(getOutputTypes());
                 } catch (IOException e) {
                     throw new RuntimeException("Unable to read success marker file: " + successMarker, e);

@@ -15,6 +15,10 @@ public class ClosureCompilerWarningsGuard extends WarningsGuard {
             "JSC_WRONG_ARGUMENT_COUNT"
     );
 
+    public ClosureCompilerWarningsGuard() {
+
+    }
+
     @Override
     public @Nullable CheckLevel level(JSError error) {
         if (IGNORED_WARNINGS.contains(error.getType().key)) {

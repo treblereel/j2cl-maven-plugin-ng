@@ -137,15 +137,16 @@ public class ClosureTask extends TaskInput {
         options.setEnvironment(CompilerOptions.Environment.BROWSER);
         options.setClosurePass(true);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
-        options.addWarningsGuard(new ClosureCompilerWarningsGuard());
+        //options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
         options.setSourceMapOutputPath("dist/app.min.js.map");
         options.setSourceMapIncludeSourcesContent(true);
         options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
         options.setSourceMapFormat(SourceMap.Format.V3);
         options.setDefineReplacements(buildContext.getConfig().defines());
-
         setCompilationLevel(options);
+
+        System.out.println("TRACE " + options.getTracerMode());
 
         ClosureLibrary.get().forEach((path, content) -> {
             inputs.add(SourceFile.fromCode(path, content));
@@ -193,6 +194,7 @@ public class ClosureTask extends TaskInput {
     }
 
     private String runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
+        Objects.requireNonNull(options);
         Compiler compiler = new Compiler();
         Result result = compiler.compile(externs, inputs, options);
 
@@ -269,6 +271,6 @@ public class ClosureTask extends TaskInput {
         CompilationLevel level = CompilationLevel.fromString(buildContext.getConfig().compilationLevel());
         level.setOptionsForCompilationLevel(options);
 
-        System.out.println("Using compilation level: " + level);
+        logger.info("Using compilation level: " + level);
     }
 }

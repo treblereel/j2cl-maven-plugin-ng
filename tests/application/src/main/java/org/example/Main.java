@@ -1,6 +1,7 @@
 package org.example;
 
 import elemental2.dom.DomGlobal;
+import org.example.tests.ModuleTwo;
 
 public class Main {
 
@@ -8,5 +9,6 @@ public class Main {
     public void entryPoint() {
         //String.format("Hello, %s!", "J2CL");
         DomGlobal.console.log("Hello, J2CL!  " + ValueHolder.getExpectedValue());
+        DomGlobal.console.log("Hello, From modules  " + new ModuleTwo().greet());
     }
 }

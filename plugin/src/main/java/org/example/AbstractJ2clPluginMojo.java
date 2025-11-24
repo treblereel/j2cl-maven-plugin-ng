@@ -3,6 +3,7 @@ package org.example;
 import org.apache.maven.RepositoryUtils;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.execution.ProjectDependencyGraph;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -10,6 +11,7 @@ import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuilder;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.DefaultArtifact;
@@ -22,8 +24,7 @@ import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.log.MavenBuildLog;
-import org.example.model.Dependency;
-import org.example.model.ReactorProject;
+import org.example.model.ReactorDependency;
 import org.example.xbt.TranslationsFileConfig;
 
 import java.io.File;
@@ -131,12 +132,6 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
     private List<RemoteRepository> remoteRepos;
 
-    @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
-
-    @Component
-    private RepositorySystem repoSystem;
-
     @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
     private MojoExecution mojoExecution;
 
@@ -177,12 +172,29 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:zip:jszip:v20250822-1", required = true)
     protected String runtimeJsZip;
 
+    @Parameter(defaultValue = "${session}", readonly = true, required = true)
+    private MavenSession session;
+
+    @Component
+    private RepositorySystem repoSystem;
+
+    @Component
+    private ProjectBuilder projectBuilder;
+
     @Override
     public void execute() throws MojoExecutionException {
         BuildLog buildLog = new MavenBuildLog(this);
 
-        Map<String, String> defaultDependencyReplacement = new HashMap<>();
-        defaultDependencyReplacement.put("com.google.jsinterop:base", "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1");
+        Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();
+        defaultDependencyReplacement.put("com.google.jsinterop:base", new org.apache.maven.artifact.DefaultArtifact(
+                "org.kie.j2cl.tools.jsinterop",
+                "jsinterop-base",
+                "1.1.1",
+                "compile",
+                "jar",
+                null,
+                new org.apache.maven.artifact.handler.DefaultArtifactHandler()
+        ));
         defaultDependencyReplacement.put("org.gwtproject:gwt-user", null);
         defaultDependencyReplacement.put("org.gwtproject:gwt-dev", null);
         defaultDependencyReplacement.put("org.gwtproject:gwt-servlet", null);
@@ -191,10 +203,12 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         defaultDependencyReplacement.put("com.google.gwt:gwt-servlet", null);
 
         ArtifactResolver artifactResolver = new ArtifactResolver(
+                project,
                 repoSystem,
                 remoteRepos,
                 repoSession,
                 session,
+                projectBuilder,
                 defaultDependencyReplacement,
                 buildLog
         );
@@ -235,14 +249,26 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
         );
 
-        List<Dependency> dependencies = artifactResolver.getDependencies(
-                project.getGroupId(),
-                project.getArtifactId(),
-                project.getVersion(),
-                "compile"
-        );
+        ProjectDependencyGraph graph = session.getProjectDependencyGraph();
+        List<MavenProject> upstream = graph.getUpstreamProjects(project, true);
 
-        ReactorProject project = new ReactorProject(this.project, artifactResolver, dependencies);
+        upstream.forEach(project -> {
+            System.out.println("Upstream Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion() + ":" + project.getArtifact().getScope());
+        });
+
+        project.getDependencyArtifacts().forEach(dependency -> {
+            System.out.println("Dependency Artifact: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion() + " " + dependency.getScope());
+        });
+
+        session.getProjects().forEach(project -> {
+            System.out.println("Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion() + " " + project.getPackaging());
+        });
+
+        session.getProjectDependencyGraph().getSortedProjects().forEach(project -> {
+            System.out.println("Graph Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion());
+        });
+
+        ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
 
         process(project, buildContext, buildLog);
     }
@@ -272,5 +298,5 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         }
     }
 
-    protected abstract void process(ReactorProject project, BuildContext buildContext, BuildLog buildLog);
+    protected abstract void process(ReactorDependency project, BuildContext buildContext, BuildLog buildLog);
 }
