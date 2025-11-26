@@ -23,11 +23,15 @@ public class ReactorDependency implements Dependency {
 
     @Override
     public Collection<Dependency> getDependencies() {
-        return Stream.concat(project.getDependencyArtifacts()
-                                .stream()
-                                .filter(artifact -> !artifact.getScope().equals("provided"))
-                                .map(artifact -> new JarDependency(artifact, artifactResolver)),
-                        artifactResolver.getReactorDependencies(project).stream())
+        return project.getDependencyArtifacts()
+                .stream()
+                .filter(artifact -> !artifact.getScope().equals("provided"))
+                .map(artifact -> {
+                    if (artifactResolver.isInReactor(artifact)) {
+                        return new ReactorDependency(artifactResolver.getMavenProject(artifact), artifactResolver);
+                    }
+                    return new JarDependency(artifact, artifactResolver);
+                })
                 .collect(Collectors.toSet());
     }
 

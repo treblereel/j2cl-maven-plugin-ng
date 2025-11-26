@@ -125,27 +125,45 @@ public class ArtifactResolver {
                 .collect(Collectors.toList());
     }
 
+    public boolean isInReactor(org.apache.maven.artifact.Artifact artifact) {
+        return isInReactor(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
+    }
+
     public boolean isInReactor(Artifact artifact) {
+        return isInReactor(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
+    }
+
+    public boolean isInReactor(String groupId, String artifactId, String version) {
         for (MavenProject project : reactorProjects) {
-            if (project.getGroupId().equals(artifact.getGroupId())
-                    && project.getArtifactId().equals(artifact.getArtifactId())
-                    && project.getVersion().equals(artifact.getVersion())) {
+            if (project.getGroupId().equals(groupId)
+                    && project.getArtifactId().equals(artifactId)
+                    && project.getVersion().equals(version)) {
                 return true;
             }
         }
         return false;
     }
 
+    public MavenProject getMavenProject(org.apache.maven.artifact.Artifact artifact) {
+        return getMavenProject(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
+    }
+
     public MavenProject getMavenProject(Artifact artifact) {
+        return getMavenProject(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
+    }
+
+    public MavenProject getMavenProject(String groupId, String artifactId, String version) {
         for (MavenProject project : reactorProjects) {
-            if (project.getGroupId().equals(artifact.getGroupId())
-                    && project.getArtifactId().equals(artifact.getArtifactId())
-                    && project.getVersion().equals(artifact.getVersion())) {
+            if (project.getGroupId().equals(groupId)
+                    && project.getArtifactId().equals(artifactId)
+                    && project.getVersion().equals(version)) {
                 return project;
             }
         }
-        return null;
+        throw new RuntimeException("Failed to resolve " + groupId + ":" + artifactId + ":" + version);
+
     }
+
 
     public org.eclipse.aether.graph.Dependency getDependencyWithMavenCoords(String coords) {
         ArtifactRequest request = new ArtifactRequest()

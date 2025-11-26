@@ -5,6 +5,7 @@ import com.google.javascript.rhino.StaticSourceFile;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
+import org.example.model.ReactorDependency;
 import org.example.tools.ClosureCompilerWarningsGuard;
 import org.example.tools.ClosureLibrary;
 
@@ -137,7 +138,7 @@ public class ClosureTask extends TaskInput {
         options.setEnvironment(CompilerOptions.Environment.BROWSER);
         options.setClosurePass(true);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
-        //options.addWarningsGuard(new ClosureCompilerWarningsGuard());
+        options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
         options.setSourceMapOutputPath("dist/app.min.js.map");
         options.setSourceMapIncludeSourcesContent(true);
@@ -145,8 +146,6 @@ public class ClosureTask extends TaskInput {
         options.setSourceMapFormat(SourceMap.Format.V3);
         options.setDefineReplacements(buildContext.getConfig().defines());
         setCompilationLevel(options);
-
-        System.out.println("TRACE " + options.getTracerMode());
 
         ClosureLibrary.get().forEach((path, content) -> {
             inputs.add(SourceFile.fromCode(path, content));
