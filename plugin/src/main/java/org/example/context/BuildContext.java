@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BuildContext {
 
@@ -18,6 +19,8 @@ public class BuildContext {
   private final ArtifactResolver artifactResolver;
   private final Config config;
   private final MavenProject project;
+
+  private final AtomicBoolean failed = new AtomicBoolean(false);
 
   private final PluginParameterExpressionEvaluator evaluator;
 
@@ -45,6 +48,14 @@ public class BuildContext {
 
   public List<AptPath> getAPTProcessorPaths(MavenProject project) {
     return APTProcessors.getAPTProcessorPaths(project, artifactResolver, evaluator);
+  }
+
+  public void markFailed() {
+    failed.set(true);
+  }
+
+  public boolean hasFailed() {
+    return failed.get();
   }
 
   public void shutdown() {

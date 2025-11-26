@@ -1,15 +1,18 @@
 package org.example.model;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.model.Resource;
 import org.apache.maven.project.MavenProject;
 import org.example.context.ArtifactResolver;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ReactorDependency implements Dependency {
 
@@ -70,9 +73,19 @@ public class ReactorDependency implements Dependency {
     }
 
     public List<Path> getSourcePaths() {
-        return Stream.concat(project.getResources().stream().map(dir -> Path.of(dir.getDirectory())),
-                        Stream.of(project.getBuild().getSourceDirectory()).map(Path::of))
-                .collect(Collectors.toList());
+        List<Path> result = new ArrayList<>();
+        Path sources = Paths.get(project.getBuild().getSourceDirectory());
+        if(Files.exists(sources)) {
+            result.add(sources);
+        }
+
+        for(Resource resource: project.getBuild().getResources()) {
+            Path resourcePath = Paths.get(resource.getDirectory());
+            if(Files.exists(resourcePath)) {
+                result.add(resourcePath);
+            }
+        }
+        return result;
     }
 
     @Override

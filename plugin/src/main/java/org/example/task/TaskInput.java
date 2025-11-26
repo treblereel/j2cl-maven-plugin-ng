@@ -40,10 +40,16 @@ public abstract class TaskInput {
     }
 
     private CompletableFuture<Path> resolve() {
+        if(buildContext.hasFailed()) {
+            CompletableFuture<Path> failedFuture = new CompletableFuture<>();
+            failedFuture.completeExceptionally(new RuntimeException("Build has already failed, skipping task " + key()));
+            return failedFuture;
+        }
         return CompletableFuture
                 .runAsync(doProcess(), buildContext.executor())
                 .thenApplyAsync(v -> outputPath(), buildContext.executor())
                 .exceptionally(ex -> {
+                    buildContext.markFailed();
                     markFailed();
                     logger.error("Failed to process task " + key() + ": " + ex.getMessage());
                     throw new CompletionException("Task " + key() + " failed", ex);
