@@ -140,7 +140,7 @@ public class ClosureTask extends TaskInput {
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
-        options.setSourceMapOutputPath("dist/app.min.js.map");
+        options.setSourceMapOutputPath("sources/" + buildContext.getConfig().initialScriptFilename() + ".map");
         options.setSourceMapIncludeSourcesContent(true);
         options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
         options.setSourceMapFormat(SourceMap.Format.V3);
@@ -151,10 +151,11 @@ public class ClosureTask extends TaskInput {
             inputs.add(SourceFile.fromCode(path, content));
         });
 
-        String compressedJs = runCompiler(externs, inputs, options);
+        Compiler compiler = runCompiler(externs, inputs, options);
         Path outPutFolder = outputPath().resolve(buildContext.getConfig().initialScriptFilename()).getParent();
 
-        writeJSScriptToDisk(outPutFolder, compressedJs);
+        writeJSScriptToDisk(outPutFolder, compiler.toSource());
+        writeSourceMapToDisk(outPutFolder, compiler.getSourceMap());
         copyPublicResources(selfJsOutPutUnzipped, depsUnzipped, outPutFolder);
     }
 
@@ -192,7 +193,32 @@ public class ClosureTask extends TaskInput {
         }
     }
 
-    private String runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
+    private void writeSourceMapToDisk(Path outPutFolder, SourceMap sourceMap) {
+        String scriptName = buildContext.getConfig().initialScriptFilename();
+        Path outputJSScriptName = outputPath().resolve(buildContext.getConfig().initialScriptFilename());
+        String sourceMapFileName = scriptName + ".map";
+        Path outputSourceMapName = outputJSScriptName.getParent().resolve("sources").resolve(sourceMapFileName);
+        try {
+            Files.createDirectories(outputSourceMapName.getParent());
+            try (Writer out = Files.newBufferedWriter(
+                    outputSourceMapName,
+                    StandardCharsets.UTF_8
+            )) {
+                sourceMap.appendTo(out, scriptName);
+                String mapLine = "\n//# sourceMappingURL=sources/" + sourceMapFileName + "\n";
+
+                Files.writeString(
+                        outputJSScriptName,
+                        mapLine,
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.APPEND
+                );            }
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to write output file: " + outputPath(), e);
+        }
+    }
+
+    private Compiler runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
         Objects.requireNonNull(options);
         Compiler compiler = new Compiler();
         Result result = compiler.compile(externs, inputs, options);
@@ -207,7 +233,7 @@ public class ClosureTask extends TaskInput {
         for (JSError e : result.warnings) {
             logger.warn("Warnings: " + e.toString());
         }
-        return compiler.toSource();
+        return compiler;
     }
 
 
