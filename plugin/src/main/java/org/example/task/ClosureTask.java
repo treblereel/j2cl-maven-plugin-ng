@@ -141,9 +141,11 @@ public class ClosureTask extends TaskInput {
         options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
         options.setSourceMapOutputPath("sources/" + buildContext.getConfig().initialScriptFilename() + ".map");
-        options.setSourceMapIncludeSourcesContent(true);
+        options.setSourceMapIncludeSourcesContent(false);
         options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
         options.setSourceMapFormat(SourceMap.Format.V3);
+        options.setApplyInputSourceMaps(true);
+
         options.setDefineReplacements(buildContext.getConfig().defines());
         setCompilationLevel(options);
 
@@ -155,6 +157,30 @@ public class ClosureTask extends TaskInput {
         Path outPutFolder = outputPath().resolve(buildContext.getConfig().initialScriptFilename()).getParent();
 
         writeJSScriptToDisk(outPutFolder, compiler.toSource());
+
+        List<SourceMap.LocationMapping> mappings = new ArrayList<>();
+
+
+
+        Set<String> fixedPath = new HashSet<>();
+
+        for (FileEntry file : selfJsOutPut.files()) {
+            System.out.println("Adding source map mapping for: " + file.getAbsolutePath() + " => " + file.getSourcePath() + " " + file.getParentPath());
+            fixedPath.add(file.getParentPath().toString());
+
+        }
+
+        fixedPath.forEach(p -> {
+            String from = p + "|.";
+            mappings.add(new SourceMap.PrefixLocationMapping(p, "|."));
+        });
+
+        options.setSourceMapLocationMappings(mappings);
+
+
+
+
+
         writeSourceMapToDisk(outPutFolder, compiler.getSourceMap());
         copyPublicResources(selfJsOutPutUnzipped, depsUnzipped, outPutFolder);
     }
