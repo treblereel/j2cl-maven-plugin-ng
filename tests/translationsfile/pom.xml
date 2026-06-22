@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.example.tests</groupId>
+        <artifactId>j2cl-plugin-tests</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>translationsfile</artifactId>
+    <name>Test: Translation Files (XTB)</name>
+    <description>String translation and localization with Closure defines</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.jsinterop</groupId>
+            <artifactId>jsinterop-annotations</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+            <version>v20260527-1</version>
+            <classifier>sources</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>gwttestcase-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.example</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- Test 1: default (no translation file, English baseline) -->
+                    <execution>
+                        <id>test-default</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-default.js</initialScriptFilename>
+                            <defines>
+                                <holder.value>I guess something happened!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 2: explicit XTB file from project root, Czech -->
+                    <execution>
+                        <id>test-cz</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-cz.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/MyTranslationBundle_cz.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>cz</goog.LOCALE>
+                                <holder.value>Asi se něco stalo!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 3: explicit XTB file from META-INF, French -->
+                    <execution>
+                        <id>test-fr-meta-inf</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-fr-meta-inf.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/src/main/resources/META-INF/MyTranslationBundle_fr.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>fr</goog.LOCALE>
+                                <holder.value>Je suppose qu'il s'est passé quelque chose !</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 4: explicit XTB file from Java package directory, German -->
+                    <execution>
+                        <id>test-de-java-pkg</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-de-java-pkg.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/src/main/java/example/test/MyTranslationBundle_de.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>de</goog.LOCALE>
+                                <holder.value>Ich schätze, es ist etwas passiert!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 5: auto-detection of XTB by locale, Czech -->
+                    <execution>
+                        <id>test-cz-auto</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-cz-auto.js</initialScriptFilename>
+                            <translationsFile>
+                                <auto>true</auto>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>cz</goog.LOCALE>
+                                <holder.value>Asi se něco stalo!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 6: auto-detection with HTML escaping test, zr locale -->
+                    <execution>
+                        <id>test-escape</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile/test-escape.js</initialScriptFilename>
+                            <translationsFile>
+                                <auto>true</auto>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>zr</goog.LOCALE>
+                                <holder.testEscape>true</holder.testEscape>
+                            </defines>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ReactorDependency implements Dependency {
@@ -26,9 +27,13 @@ public class ReactorDependency implements Dependency {
 
     @Override
     public Collection<Dependency> getDependencies() {
+        if (project.getDependencyArtifacts() == null) {
+            return Set.of();
+        }
         return project.getDependencyArtifacts()
                 .stream()
                 .filter(artifact -> !artifact.getScope().equals("provided"))
+                .filter(artifact -> !artifact.getScope().equals("test"))
                 .map(artifact -> {
                     if (artifactResolver.isInReactor(artifact)) {
                         return new ReactorDependency(artifactResolver.getMavenProject(artifact), artifactResolver);
@@ -70,6 +75,10 @@ public class ReactorDependency implements Dependency {
 
     public MavenProject getMavenProject() {
         return project;
+    }
+
+    protected ArtifactResolver getArtifactResolver() {
+        return artifactResolver;
     }
 
     public List<Path> getSourcePaths() {

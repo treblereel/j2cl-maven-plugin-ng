@@ -35,6 +35,10 @@ public class JarDependency implements Dependency {
 
     @Override
     public String key() {
+        String classifier = artifact.getClassifier();
+        if (classifier != null && !classifier.isEmpty()) {
+            return String.format("%s-%s-%s-%s", artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(), classifier);
+        }
         return String.format("%s-%s-%s", artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
     }
 

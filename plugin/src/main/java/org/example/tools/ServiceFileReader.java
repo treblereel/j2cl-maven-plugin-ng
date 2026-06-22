@@ -13,7 +13,7 @@ public final class ServiceFileReader {
   private static final String SERVICE_PATH =
           "META-INF/services/javax.annotation.processing.Processor";
 
-  static List<String> readProcessors(Path jar) throws IOException {
+  public static List<String> readProcessors(Path jar) throws IOException {
     try (ZipFile zf = new ZipFile(jar.toFile())) {
       ZipEntry e = zf.getEntry(SERVICE_PATH);
       if (e == null) {

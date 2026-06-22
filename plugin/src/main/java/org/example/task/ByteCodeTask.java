@@ -10,14 +10,22 @@ import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
 import org.example.model.ReactorDependency;
+import org.example.model.JarDependency;
 import org.example.tools.AptPath;
+import org.example.tools.J2CLModuleParser;
+import org.example.tools.ServiceFileReader;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -46,7 +54,9 @@ public class ByteCodeTask extends TaskInput {
     public void process() {
         List<File> extraClasspath = buildContext.getConfig().getExtraClasspath();
 
-        TaskOutput self = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES).filter(JAVA_SOURCES);
+        TaskOutput unzipped = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
+        List<Path> superSourcePaths = J2CLModuleParser.getSuperSourcePaths(unzipped.paths());
+        TaskOutput self = unzipped.filter(JAVA_SOURCES);
 
         Set<String> moduleDependencies = Stream.concat(extraClasspath.stream().map(File::toString),
                         input(dependency.getDependencies(), OutputTypes.BYTECODE)
@@ -69,7 +79,68 @@ public class ByteCodeTask extends TaskInput {
                 annotationProcessorJars.add(aptPath.annotationProcessorFile().getAbsolutePath());
                 annotationProcessorNames.addAll(aptPath.annotationProcessorName());
             }
+
+            for (org.apache.maven.artifact.Artifact artifact : project.getDependencyArtifacts()) {
+                if (!"provided".equals(artifact.getScope()) || artifact.getFile() == null) continue;
+                File file = artifact.getFile();
+                List<String> processors = List.of();
+                try {
+                    if (file.isFile()) {
+                        processors = ServiceFileReader.readProcessors(file.toPath());
+                    } else if (file.isDirectory()) {
+                        java.nio.file.Path serviceFile = file.toPath()
+                                .resolve("META-INF/services/javax.annotation.processing.Processor");
+                        if (Files.isRegularFile(serviceFile)) {
+                            processors = Files.readAllLines(serviceFile).stream()
+                                    .map(String::trim)
+                                    .filter(s -> !s.isEmpty() && !s.startsWith("#"))
+                                    .toList();
+                        }
+                    }
+                } catch (IOException e) {
+                    // not an annotation processor
+                }
+                if (!processors.isEmpty()) {
+                    String path = file.getAbsolutePath();
+                    moduleDependencies.add(path);
+                    annotationProcessorJars.add(path);
+                    annotationProcessorNames.addAll(processors);
+
+                    for (Dependency dep : buildContext.getArtifactResolver().getDependencies(artifact)) {
+                        if (dep instanceof JarDependency jarDep && jarDep.bytecodeJar() != null) {
+                            String depPath = jarDep.bytecodeJar().getAbsolutePath();
+                            moduleDependencies.add(depPath);
+                            annotationProcessorJars.add(depPath);
+                        }
+                    }
+                }
+            }
+
+            if (!annotationProcessorNames.isEmpty()) {
+                for (org.apache.maven.artifact.Artifact artifact : project.getDependencyArtifacts()) {
+                    if ("provided".equals(artifact.getScope()) || "test".equals(artifact.getScope())) continue;
+                    if (artifact.getFile() != null && artifact.getFile().isFile()) {
+                        String depPath = artifact.getFile().getAbsolutePath();
+                        moduleDependencies.add(depPath);
+                        annotationProcessorJars.add(depPath);
+                    }
+                }
+            }
         }
+
+        List<AptPath> extraAptPaths = buildContext.getConfig().getExtraAnnotationProcessors();
+        for (AptPath aptPath : extraAptPaths) {
+            moduleDependencies.add(aptPath.annotationProcessorFile().getAbsolutePath());
+            annotationProcessorJars.add(aptPath.annotationProcessorFile().getAbsolutePath());
+            annotationProcessorNames.addAll(aptPath.annotationProcessorName());
+        }
+
+        List<String> javacOpts = new ArrayList<>();
+        buildContext.getConfig().annotationProcessorsArgs().forEach((key, value) ->
+                javacOpts.add("-A" + key + "=" + value));
+
+        List<String> processorPath = new ArrayList<>(annotationProcessorJars);
+        processorPath.addAll(moduleDependencies);
 
         try {
 
@@ -77,13 +148,16 @@ public class ByteCodeTask extends TaskInput {
                     TurbineOptions.builder()
                             //.setDirectJars()
                             //.setSourceJars(ImmutableList.of())
-                            .setProcessorPath(ImmutableList.copyOf(annotationProcessorJars))
+                            .setProcessorPath(ImmutableList.copyOf(processorPath))
                             .setProcessors(ImmutableList.copyOf(annotationProcessorNames))
-                            .setSources(ImmutableList.copyOf(self.files().stream().map(f -> f.getAbsolutePath().toFile().toString()).toList()))
+                            .setSources(ImmutableList.copyOf(self.files().stream()
+                                    .filter(f -> superSourcePaths.stream().noneMatch(f.getSourcePath()::startsWith))
+                                    .map(f -> f.getAbsolutePath().toFile().toString()).toList()))
                             .setOutput(output.toString())
                             .setGensrcOutput(outputPath().toFile().toString())
                             .setResourceOutput(outputPath().toFile().toString())
                             .setClassPath(ImmutableList.copyOf(moduleDependencies))
+                            .addAllJavacOpts(javacOpts)
                             .setLanguageVersion(LanguageVersion.fromJavacopts(
                                     ImmutableList.of("-source", "21", "-target", "21", "--release", "21")))
                             //TODO https://github.com/Vertispan/j2clmavenplugin/issues/181

@@ -19,6 +19,10 @@ public class TaskOutput {
         this.output = output;
     }
 
+    public List<Path> paths() {
+        return output;
+    }
+
     public TaskOutput filter(PathMatcher... filters) {
         return new FilteredOutput(this, filters);
     }

@@ -2,6 +2,8 @@ package org.example.config;
 
 import org.example.xbt.TranslationsFileConfig;
 
+import org.example.tools.AptPath;
+
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,12 @@ public interface Config {
 
     boolean enableSourcemaps();
 
+    String languageOut();
+
+    boolean checkAssertions();
+
+    String env();
+
     Map<String, String> annotationProcessorsArgs();
 
     List<File> getExtraClasspath();
@@ -29,4 +37,8 @@ public interface Config {
     File getBootstrapClasspath();
 
     List<File> getJsZip();
+
+    default List<AptPath> getExtraAnnotationProcessors() {
+        return List.of();
+    }
 }

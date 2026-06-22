@@ -54,6 +54,10 @@ public class BuildContext {
     failed.set(true);
   }
 
+  public void resetFailed() {
+    failed.set(false);
+  }
+
   public boolean hasFailed() {
     return failed.get();
   }
@@ -64,5 +68,9 @@ public class BuildContext {
 
   public Path getOutputDirectory() {
     return Path.of(project.getBuild().getDirectory(), CACHE_DIRECTORY);
+  }
+
+  public java.io.File getProjectBaseDir() {
+    return project.getBasedir();
   }
 }

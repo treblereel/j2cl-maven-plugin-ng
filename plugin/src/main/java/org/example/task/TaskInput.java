@@ -21,7 +21,15 @@ import static org.example.utils.FileUtils.*;
 public abstract class TaskInput {
 
     private static final Map<String, CompletableFuture<Path>> tasks = new ConcurrentHashMap<>();
-    private static Gson gson = new Gson();
+    private static final Gson gson = new Gson();
+
+    public static void clearCache() {
+        tasks.clear();
+    }
+
+    public static void clearCacheForDependency(String dependencyKey) {
+        tasks.keySet().removeIf(k -> k.startsWith(dependencyKey + "_"));
+    }
 
     protected final Dependency dependency;
     protected final BuildContext buildContext;
@@ -65,7 +73,7 @@ public abstract class TaskInput {
             if (hasSuccessMarker()) {
                 return false;
             } else {
-                deleteDirectoryRecursive(buildContext.getOutputDirectory());
+                deleteDirectoryRecursive(getOutputDirectory());
                 insureOutputDirectoryExists();
                 outputPath().toFile().mkdirs();
                 markFailed();

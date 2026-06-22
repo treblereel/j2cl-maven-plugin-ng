@@ -13,6 +13,8 @@ public class TaskInputFactory {
             case STRIPPED_SOURCES -> new StripSourcesTask(dep, buildContext, buildLog);
             case TRANSPILED_JS -> new J2CLTask(dep, buildContext, buildLog);
             case OPTIMIZED_JS -> new ClosureTask(dep, buildContext, buildLog);
+            case BUNDLED_JS -> new ClosureBundleTask(dep, buildContext, buildLog);
+            case BUNDLED_JS_APP -> new BundleJarTask(dep, buildContext, buildLog);
             default -> throw new RuntimeException("Unsupported output type: " + outputTypes);
         };
 

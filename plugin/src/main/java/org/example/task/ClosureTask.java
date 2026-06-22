@@ -1,13 +1,14 @@
 package org.example.task;
 
 import com.google.javascript.jscomp.*;
+import com.google.javascript.jscomp.XtbMessageBundle;
 import com.google.javascript.rhino.StaticSourceFile;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.Dependency;
 import org.example.model.ReactorDependency;
 import org.example.tools.ClosureCompilerWarningsGuard;
-import org.example.tools.ClosureLibrary;
+
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -135,53 +136,75 @@ public class ClosureTask extends TaskInput {
         CompilerOptions options = new CompilerOptions();
         options.setJ2clMinifierEnabled(true);
         options.setJ2clPass(CompilerOptions.J2clPassMode.AUTO);
-        options.setEnvironment(CompilerOptions.Environment.BROWSER);
+        options.setEnvironment(CompilerOptions.Environment.valueOf(buildContext.getConfig().env()));
         options.setClosurePass(true);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
+        options.setLanguageOut(CompilerOptions.LanguageMode.fromString(buildContext.getConfig().languageOut()));
+        options.setRemoveJ2clAsserts(!buildContext.getConfig().checkAssertions());
         options.addWarningsGuard(new ClosureCompilerWarningsGuard());
 
-        options.setSourceMapOutputPath("sources/" + buildContext.getConfig().initialScriptFilename() + ".map");
-        options.setSourceMapIncludeSourcesContent(false);
-        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
-        options.setSourceMapFormat(SourceMap.Format.V3);
-        options.setApplyInputSourceMaps(true);
+        if (buildContext.getConfig().enableSourcemaps()) {
+            options.setSourceMapOutputPath("sources/" + Paths.get(buildContext.getConfig().initialScriptFilename()).getFileName() + ".map");
+            options.setSourceMapIncludeSourcesContent(false);
+            options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
+            options.setSourceMapFormat(SourceMap.Format.V3);
+            options.setApplyInputSourceMaps(true);
 
-        options.setDefineReplacements(buildContext.getConfig().defines());
+            List<SourceMap.LocationMapping> mappings = new ArrayList<>();
+            Set<String> fixedPath = new HashSet<>();
+            for (FileEntry file : selfJsOutPut.files()) {
+                fixedPath.add(file.getParentPath().toString());
+            }
+            for (FileEntry file : depsTranspiled.files()) {
+                fixedPath.add(file.getParentPath().toString());
+            }
+            for (FileEntry file : depsUnzipped.files()) {
+                fixedPath.add(file.getParentPath().toString());
+            }
+            for (File f : extra) {
+                String zipPrefix = f.toPath().toString() + "!/";
+                String commonDir = null;
+                for (SourceFile sf : inputs) {
+                    if (!sf.getName().startsWith(zipPrefix)) continue;
+                    String internal = sf.getName().substring(zipPrefix.length());
+                    String dir = internal.contains("/") ? internal.substring(0, internal.lastIndexOf('/')) : "";
+                    if (commonDir == null) {
+                        commonDir = dir;
+                    } else {
+                        while (!commonDir.isEmpty() && !dir.startsWith(commonDir)) {
+                            int lastSlash = commonDir.lastIndexOf('/');
+                            commonDir = lastSlash >= 0 ? commonDir.substring(0, lastSlash) : "";
+                        }
+                    }
+                }
+                if (commonDir != null && !commonDir.isEmpty()) {
+                    fixedPath.add(zipPrefix + commonDir);
+                }
+            }
+            fixedPath.forEach(p -> mappings.add(new SourceMap.PrefixLocationMapping(p, ".")));
+            options.setSourceMapLocationMappings(mappings);
+        }
+
+        if (buildContext.getConfig().checkAssertions()) {
+            options.setDefineReplacements(buildContext.getConfig().defines());
+        } else {
+            Map<String, Object> defs = new TreeMap<>(buildContext.getConfig().defines());
+            defs.put("jre.checks.checkLevel", "MINIMAL");
+            options.setDefineReplacements(defs);
+        }
         setCompilationLevel(options);
+        setTranslationsFile(options);
 
-        ClosureLibrary.get().forEach((path, content) -> {
-            inputs.add(SourceFile.fromCode(path, content));
-        });
+        // Closure Library files (base.js, long.js, reflect.js) are provided via the bootstrap jsZip
 
         Compiler compiler = runCompiler(externs, inputs, options);
         Path outPutFolder = outputPath().resolve(buildContext.getConfig().initialScriptFilename()).getParent();
 
         writeJSScriptToDisk(outPutFolder, compiler.toSource());
 
-        List<SourceMap.LocationMapping> mappings = new ArrayList<>();
-
-
-
-        Set<String> fixedPath = new HashSet<>();
-
-        for (FileEntry file : selfJsOutPut.files()) {
-            System.out.println("Adding source map mapping for: " + file.getAbsolutePath() + " => " + file.getSourcePath() + " " + file.getParentPath());
-            fixedPath.add(file.getParentPath().toString());
-
+        if (buildContext.getConfig().enableSourcemaps()) {
+            writeSourceMapToDisk(outPutFolder, compiler.getSourceMap());
         }
-
-        fixedPath.forEach(p -> {
-            String from = p + "|.";
-            mappings.add(new SourceMap.PrefixLocationMapping(p, "|."));
-        });
-
-        options.setSourceMapLocationMappings(mappings);
-
-
-
-
-
-        writeSourceMapToDisk(outPutFolder, compiler.getSourceMap());
         copyPublicResources(selfJsOutPutUnzipped, depsUnzipped, outPutFolder);
     }
 
@@ -194,12 +217,11 @@ public class ClosureTask extends TaskInput {
         try {
             for (FileEntry resource : resources) {
                 Path outPutPath = outPutFolder.resolve(extractPublicResourcePath(resource.getSourcePath()));
-                System.out.println("Copying resource: " + resource.getAbsolutePath() + " to " + outPutPath);
+                logger.info("Copying resource: " + resource.getAbsolutePath() + " to " + outPutPath);
                 Files.createDirectories(outPutPath.getParent());
                 Files.copy(resource.getAbsolutePath(), outPutPath, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            System.out.println(e.getMessage());
             throw new RuntimeException("Unable to copy resources to output directory: " + outPutFolder, e);
         }
     }
@@ -221,8 +243,9 @@ public class ClosureTask extends TaskInput {
 
     private void writeSourceMapToDisk(Path outPutFolder, SourceMap sourceMap) {
         String scriptName = buildContext.getConfig().initialScriptFilename();
-        Path outputJSScriptName = outputPath().resolve(buildContext.getConfig().initialScriptFilename());
-        String sourceMapFileName = scriptName + ".map";
+        Path outputJSScriptName = outputPath().resolve(scriptName);
+        String scriptBaseName = Paths.get(scriptName).getFileName().toString();
+        String sourceMapFileName = scriptBaseName + ".map";
         Path outputSourceMapName = outputJSScriptName.getParent().resolve("sources").resolve(sourceMapFileName);
         try {
             Files.createDirectories(outputSourceMapName.getParent());
@@ -230,7 +253,7 @@ public class ClosureTask extends TaskInput {
                     outputSourceMapName,
                     StandardCharsets.UTF_8
             )) {
-                sourceMap.appendTo(out, scriptName);
+                sourceMap.appendTo(out, scriptBaseName);
                 String mapLine = "\n//# sourceMappingURL=sources/" + sourceMapFileName + "\n";
 
                 Files.writeString(
@@ -319,9 +342,83 @@ public class ClosureTask extends TaskInput {
     }
 
     private void setCompilationLevel(CompilerOptions options) {
-        CompilationLevel level = CompilationLevel.fromString(buildContext.getConfig().compilationLevel());
+        String levelStr = buildContext.getConfig().compilationLevel();
+        CompilationLevel level = CompilationLevel.fromString(levelStr);
+        if (level == null) {
+            throw new IllegalArgumentException("Invalid compilationLevel: " + levelStr
+                    + ". Valid values: ADVANCED_OPTIMIZATIONS, SIMPLE_OPTIMIZATIONS, WHITESPACE_ONLY, BUNDLE");
+        }
         level.setOptionsForCompilationLevel(options);
-
         logger.info("Using compilation level: " + level);
+    }
+
+    private void setTranslationsFile(CompilerOptions options) {
+        org.example.xbt.TranslationsFileConfig tf = buildContext.getConfig().translationsFile();
+        if (tf == null) return;
+
+        File xtbFile = resolveTranslationsFile(tf);
+        if (xtbFile == null) return;
+
+        logger.info("Using translations file: " + xtbFile.getAbsolutePath());
+        try (FileInputStream is = new FileInputStream(xtbFile)) {
+            InputStream source = tf.isAuto()
+                    ? org.example.xbt.XtbPreprocessor.preprocess(is)
+                    : is;
+            options.setMessageBundle(new XtbMessageBundle(source, null));
+            if (source != is) source.close();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read translations file: " + xtbFile, e);
+        }
+    }
+
+    private File resolveTranslationsFile(org.example.xbt.TranslationsFileConfig tf) {
+        if (tf.getFile() != null && !tf.getFile().isEmpty()) {
+            File f = new File(tf.getFile());
+            if (!f.exists()) {
+                throw new RuntimeException("Translations file not found: " + f.getAbsolutePath());
+            }
+            return f;
+        }
+        if (tf.isAuto()) {
+            Object locale = buildContext.getConfig().defines().get("goog.LOCALE");
+            if (locale == null) {
+                logger.warn("translationsFile auto=true but goog.LOCALE not set in defines");
+                return null;
+            }
+            return findXtbByLocale(locale.toString());
+        }
+        return null;
+    }
+
+    private File findXtbByLocale(String locale) {
+        String normalizedLocale = locale.replace("-", "_");
+        File baseDir = buildContext.getProjectBaseDir();
+
+        Path[] searchRoots = {
+                baseDir.toPath(),
+                baseDir.toPath().resolve("src/main/java"),
+                baseDir.toPath().resolve("src/main/resources")
+        };
+
+        for (Path root : searchRoots) {
+            if (!Files.exists(root)) continue;
+            try (Stream<Path> walk = Files.walk(root)) {
+                Optional<Path> match = walk
+                        .filter(Files::isRegularFile)
+                        .filter(p -> p.toString().endsWith(".xtb"))
+                        .filter(p -> {
+                            String name = p.getFileName().toString();
+                            return name.contains(locale) || name.contains(normalizedLocale);
+                        })
+                        .findFirst();
+                if (match.isPresent()) {
+                    return match.get().toFile();
+                }
+            } catch (IOException e) {
+                logger.warn("Failed to scan for XTB files in " + root + ": " + e.getMessage());
+            }
+        }
+        logger.warn("No XTB file found for locale '" + locale + "' in " + baseDir);
+        return null;
     }
 }

@@ -43,7 +43,7 @@ public class GwtIncompatiblePreprocessor {
     public void preprocess(List<FileInfo> unprocessedFiles) {
         Problems problems = new Problems();
 
-        try (OutputUtils.Output output = OutputUtils.initOutput(outputDirectory.toPath(), problems)) {
+        try (OutputUtils.Output output = OutputUtils.initOutputForBazel(outputDirectory.toPath(), problems)) {
             GwtIncompatibleStripper.preprocessFiles(unprocessedFiles, output, problems, List.of("GwtIncompatible"));
 
             if (problems.hasErrors()) {

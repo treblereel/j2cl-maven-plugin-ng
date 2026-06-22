@@ -7,6 +7,7 @@ import org.apache.maven.execution.ProjectDependencyGraph;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -115,6 +116,25 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     protected boolean enableSourcemaps;
 
     /**
+     * Closure flag: configures the ECMAScript output level.
+     */
+    @Parameter(defaultValue = "ECMASCRIPT_2017", property = "languageOut")
+    protected String languageOut;
+
+    /**
+     * Whether to keep J2CL assertion checks in the compiled output.
+     * When false (default for compile), assertions are stripped for smaller output.
+     */
+    @Parameter(defaultValue = "false")
+    protected boolean checkAssertions;
+
+    /**
+     * Closure Compiler environment. Determines which builtin externs to load.
+     */
+    @Parameter(defaultValue = "BROWSER")
+    protected String env;
+
+    /**
      * Arguments to pass to annotation processors, in the form of key-value pairs.
      */
     @Parameter
@@ -127,34 +147,34 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     protected MavenProject project;
 
     @Parameter(defaultValue = "${repositorySystemSession}", readonly = true, required = true)
-    private RepositorySystemSession repoSession;
+    protected RepositorySystemSession repoSession;
 
     @Parameter(defaultValue = "${project.remoteProjectRepositories}", readonly = true, required = true)
-    private List<RemoteRepository> remoteRepos;
+    protected List<RemoteRepository> remoteRepos;
 
     @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
-    private MojoExecution mojoExecution;
+    protected MojoExecution mojoExecution;
 
     /**
      * Dependencies coordinates.
      */
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:" + Versions.J2CL_VERSION, required = true)
     protected String jreJar;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath:v20250822-1", required = true, alias = "javacBootstrapClasspathJar")
+    @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath:" + Versions.J2CL_VERSION, required = true, alias = "javacBootstrapClasspathJar")
     protected String bootstrapClasspath;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:zip:jszip:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:jre:zip:jszip:" + Versions.J2CL_VERSION, required = true)
     protected String jreJsZip;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:bootstrap:zip:jszip:" + Versions.J2CL_VERSION, required = true)
     protected String bootstrapJsZip;
 
     @Parameter(defaultValue = "org.jspecify:jspecify:1.0.0", required = true)
     protected String jspecify;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:gwt-internal-annotations:" + Versions.J2CL_VERSION, required = true)
     protected String internalAnnotationsJar;
 
     @Parameter(defaultValue = "com.google.jsinterop:jsinterop-annotations:2.1.0", required = true)
@@ -163,26 +183,35 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     @Parameter(defaultValue = "org.kie.j2cl.tools.jsinterop:jsinterop-base:1.1.1", required = true)
     protected String jsinteropBaseJar;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:closure-test:zip:jszip:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:closure-test:zip:jszip:" + Versions.J2CL_VERSION, required = true)
     protected String testJsZip;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:" + Versions.J2CL_VERSION, required = true)
     protected String runtime;
 
-    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:zip:jszip:v20250822-1", required = true)
+    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-runtime:zip:jszip:" + Versions.J2CL_VERSION, required = true)
     protected String runtimeJsZip;
 
+    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-annotations:" + Versions.J2CL_VERSION, required = true)
+    protected String junitAnnotations;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:junit-emul:" + Versions.J2CL_VERSION, required = true)
+    protected String junitEmul;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:gwttestcase-emul:" + Versions.J2CL_VERSION, required = true)
+    protected String gwttestcaseEmul;
+
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
-    private MavenSession session;
+    protected MavenSession session;
 
     @Component
-    private RepositorySystem repoSystem;
+    protected RepositorySystem repoSystem;
 
     @Component
-    private ProjectBuilder projectBuilder;
+    protected ProjectBuilder projectBuilder;
 
     @Override
-    public void execute() throws MojoExecutionException {
+    public void execute() throws MojoExecutionException, MojoFailureException {
         BuildLog buildLog = new MavenBuildLog(this);
 
         Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();
@@ -222,8 +251,8 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         );
 
         List<Artifact> extraJsZips = Arrays.asList(
+                getMavenArtifactWithCoords(bootstrapJsZip),
                 getMavenArtifactWithCoords(jreJsZip)
-                //getMavenArtifactWithCoords(bootstrapJsZip)
         );
 
         File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
@@ -239,6 +268,9 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 rewritePolyfills,
                 translationsFile,
                 enableSourcemaps,
+                languageOut,
+                checkAssertions,
+                env,
                 annotationProcessorsArgs
         );
 
@@ -248,25 +280,6 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 artifactResolver,
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
         );
-
-        ProjectDependencyGraph graph = session.getProjectDependencyGraph();
-        List<MavenProject> upstream = graph.getUpstreamProjects(project, true);
-
-        upstream.forEach(project -> {
-            System.out.println("Upstream Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion() + ":" + project.getArtifact().getScope());
-        });
-
-        project.getDependencyArtifacts().forEach(dependency -> {
-            System.out.println("Dependency Artifact: " + dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion() + " " + dependency.getScope());
-        });
-
-        session.getProjects().forEach(project -> {
-            System.out.println("Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion() + " " + project.getPackaging());
-        });
-
-        session.getProjectDependencyGraph().getSortedProjects().forEach(project -> {
-            System.out.println("Graph Project: " + project.getArtifact().getGroupId() + ":" + project.getArtifact().getArtifactId() + ":" + project.getArtifact().getVersion());
-        });
 
         ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
 

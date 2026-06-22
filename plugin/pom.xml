@@ -14,8 +14,8 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <j2cl.version>v20250822-1</j2cl.version>
-        <j2cl.base.version>v20251027-1</j2cl.base.version>
+        <j2cl.version>v20260527-1</j2cl.version>
+        <j2cl.base.version>v20260527-1</j2cl.base.version>
         <closure.compiler.unshaded.version>v20250903-1</closure.compiler.unshaded.version>
     </properties>
 
@@ -169,6 +169,28 @@
             <artifactId>closure-compiler-externs</artifactId>
             <version>v20250820</version>
         </dependency>
+
+        <!-- Selenium for browser automation in tests -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-api</artifactId>
+            <version>4.44.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-support</artifactId>
+            <version>4.44.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-chrome-driver</artifactId>
+            <version>4.44.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>htmlunit3-driver</artifactId>
+            <version>4.44.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -177,5 +199,20 @@
                 <directory>src/main/resources</directory>
             </resource>
         </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>templating-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <goals>
+                            <goal>filter-sources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

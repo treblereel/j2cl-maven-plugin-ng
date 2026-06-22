@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.example.tests</groupId>
+        <artifactId>j2cl-plugin-tests</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>static-resources</artifactId>
+    <name>Test: Static Resources</name>
+    <description>Public directory and META-INF resource handling</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.jsinterop</groupId>
+            <artifactId>jsinterop-annotations</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.elemental2</groupId>
+            <artifactId>elemental2-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.elemental2</groupId>
+            <artifactId>elemental2-dom</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.elemental2</groupId>
+            <artifactId>elemental2-promise</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+            <version>v20260527-1</version>
+            <classifier>sources</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>gwttestcase-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.example</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Static resource handling (public/ dir) not yet implemented;
+                                 also HtmlUnit doesn't support fetch() which these tests use -->
+                            <skip>true</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

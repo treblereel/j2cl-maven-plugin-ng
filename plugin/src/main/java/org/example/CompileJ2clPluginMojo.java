@@ -6,6 +6,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.model.ReactorDependency;
+import org.example.task.BundleJarTask;
 import org.example.task.FinalTask;
 
 
@@ -18,7 +19,11 @@ public class CompileJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
     protected void process(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         try {
-            new FinalTask(project, buildContext, buildLog).runTask().join();
+            if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
+                new BundleJarTask(project, buildContext, buildLog).runTask().join();
+            } else {
+                new FinalTask(project, buildContext, buildLog).runTask().join();
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
