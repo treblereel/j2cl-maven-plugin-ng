@@ -121,7 +121,7 @@ public class ArtifactResolver {
         return dependencyGraph.getUpstreamProjects(project, false)
                 .stream()
                 .filter(dependency -> dependency.getPackaging().equals("jar"))
-                .map(d -> new ReactorDependency(d, this))
+                .map(d -> new ReactorDependency(ensureDependenciesResolved(d), this))
                 .collect(Collectors.toList());
     }
 
@@ -157,11 +157,40 @@ public class ArtifactResolver {
             if (project.getGroupId().equals(groupId)
                     && project.getArtifactId().equals(artifactId)
                     && project.getVersion().equals(version)) {
-                return project;
+                return ensureDependenciesResolved(project);
             }
         }
         throw new RuntimeException("Failed to resolve " + groupId + ":" + artifactId + ":" + version);
+    }
 
+    private MavenProject ensureDependenciesResolved(MavenProject project) {
+        if (project.getDependencyArtifacts() != null) {
+            return project;
+        }
+        try {
+            ProjectBuildingRequest req =
+                    new DefaultProjectBuildingRequest(mavenSession.getProjectBuildingRequest());
+            req.setResolveDependencies(true);
+            req.setRepositorySession(mavenSession.getRepositorySession());
+            MavenProject resolved = projectBuilder.build(project.getFile(), req).getProject();
+            Set<org.apache.maven.artifact.Artifact> depArtifacts = resolved.getDependencyArtifacts();
+            if (depArtifacts == null && resolved.getArtifacts() != null) {
+                Set<String> directDepKeys = project.getDependencies().stream()
+                        .map(d -> d.getGroupId() + ":" + d.getArtifactId())
+                        .collect(Collectors.toSet());
+                depArtifacts = resolved.getArtifacts().stream()
+                        .filter(a -> directDepKeys.contains(a.getGroupId() + ":" + a.getArtifactId()))
+                        .collect(Collectors.toSet());
+            }
+            if (depArtifacts == null) {
+                depArtifacts = Set.of();
+            }
+            project.setDependencyArtifacts(depArtifacts);
+            return project;
+        } catch (ProjectBuildingException e) {
+            throw new RuntimeException(
+                    "Failed to resolve dependencies for " + project.getArtifactId(), e);
+        }
     }
 
 

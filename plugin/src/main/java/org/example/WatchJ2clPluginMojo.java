@@ -12,6 +12,7 @@ import org.example.context.ArtifactResolver;
 import org.example.context.BuildContext;
 import org.example.log.BuildLog;
 import org.example.log.MavenBuildLog;
+import org.example.model.Dependency;
 import org.example.model.ReactorDependency;
 import org.example.task.FinalTask;
 import org.example.task.TaskInput;
@@ -72,6 +73,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         );
 
         List<Artifact> extraJsZips = Arrays.asList(
+                getMavenArtifactWithCoords(bootstrapJsZip),
                 getMavenArtifactWithCoords(jreJsZip)
         );
 
@@ -104,7 +106,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.error("Initial compilation failed: " + e.getMessage());
         }
 
-        List<Path> sourcePaths = project.getSourcePaths();
+        List<Path> sourcePaths = new ArrayList<>(project.getSourcePaths());
+        collectReactorSourcePaths(project, sourcePaths, new HashSet<>());
         if (sourcePaths.isEmpty()) {
             buildLog.warn("No source directories to watch");
             return;
@@ -166,9 +169,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         buildLog.info("Recompiling...");
         long start = System.currentTimeMillis();
 
-        TaskInput.clearCacheForDependency(project.key());
+        clearCacheRecursive(project, buildContext, new HashSet<>());
         buildContext.resetFailed();
-        deleteSuccessMarkers(buildContext.getOutputDirectory().resolve(project.key()));
 
         try {
             new FinalTask(project, buildContext, buildLog).runTask().join();
@@ -188,6 +190,26 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                         try { Files.delete(p); } catch (IOException ignored) {}
                     });
         } catch (IOException ignored) {}
+    }
+
+    private void clearCacheRecursive(ReactorDependency dep, BuildContext buildContext, Set<String> visited) {
+        if (!visited.add(dep.key())) return;
+        TaskInput.clearCacheForDependency(dep.key());
+        deleteSuccessMarkers(buildContext.getOutputDirectory().resolve(dep.key()));
+        for (Dependency child : dep.getDependencies()) {
+            if (child instanceof ReactorDependency reactorChild) {
+                clearCacheRecursive(reactorChild, buildContext, visited);
+            }
+        }
+    }
+
+    private void collectReactorSourcePaths(ReactorDependency dep, List<Path> paths, Set<String> visited) {
+        for (Dependency child : dep.getDependencies()) {
+            if (child instanceof ReactorDependency reactorChild && visited.add(reactorChild.key())) {
+                paths.addAll(reactorChild.getSourcePaths());
+                collectReactorSourcePaths(reactorChild, paths, visited);
+            }
+        }
     }
 
     private void registerRecursive(WatchService watcher, Path root, Map<WatchKey, Path> keyToDir) throws IOException {
