@@ -1,5 +1,24 @@
 package org.treblereel.j2cl.plugin.tools;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.jar.JarFile;
+import java.util.stream.Stream;
+
+import javax.annotation.Nonnull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.j2cl.common.OutputUtils;
 import com.google.j2cl.common.Problems;
@@ -10,18 +29,6 @@ import com.google.j2cl.transpiler.ast.TypeDescriptors;
 import com.google.j2cl.transpiler.backend.Backend;
 import com.google.j2cl.transpiler.frontend.Frontend;
 import org.treblereel.j2cl.plugin.log.BuildLog;
-
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.jar.JarFile;
-import java.util.stream.Stream;
 
 public class J2cl {
 

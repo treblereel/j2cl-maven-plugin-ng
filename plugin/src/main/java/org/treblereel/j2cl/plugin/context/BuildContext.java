@@ -1,16 +1,16 @@
 package org.treblereel.j2cl.plugin.context;
 
-import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
-import org.apache.maven.project.MavenProject;
-import org.treblereel.j2cl.plugin.config.Config;
-import org.treblereel.j2cl.plugin.tools.APTProcessors;
-import org.treblereel.j2cl.plugin.tools.AptPath;
-
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
+import org.apache.maven.project.MavenProject;
+import org.treblereel.j2cl.plugin.config.Config;
+import org.treblereel.j2cl.plugin.tools.APTProcessors;
+import org.treblereel.j2cl.plugin.tools.AptPath;
 
 public class BuildContext {
 

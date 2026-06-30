@@ -1,8 +1,8 @@
 package org.treblereel.j2cl.plugin.model;
 
-import org.treblereel.j2cl.plugin.task.OutputTypes;
-
 import java.util.Set;
+
+import org.treblereel.j2cl.plugin.task.OutputTypes;
 
 public class BuildStatus {
 

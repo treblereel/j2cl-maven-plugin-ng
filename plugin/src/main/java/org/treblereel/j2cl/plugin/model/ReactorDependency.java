@@ -1,10 +1,5 @@
 package org.treblereel.j2cl.plugin.model;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.model.Resource;
-import org.apache.maven.project.MavenProject;
-import org.treblereel.j2cl.plugin.context.ArtifactResolver;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,6 +9,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.model.Resource;
+import org.apache.maven.project.MavenProject;
+import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 
 public class ReactorDependency implements Dependency {
 

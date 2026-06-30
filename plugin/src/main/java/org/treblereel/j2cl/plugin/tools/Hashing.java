@@ -1,7 +1,5 @@
 package org.treblereel.j2cl.plugin.tools;
 
-import com.google.common.hash.Hasher;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,6 +7,8 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
+
+import com.google.common.hash.Hasher;
 
 public class Hashing {
 

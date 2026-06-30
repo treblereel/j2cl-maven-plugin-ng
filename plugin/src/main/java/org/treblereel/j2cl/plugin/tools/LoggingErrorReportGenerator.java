@@ -15,7 +15,11 @@
  */
 package org.treblereel.j2cl.plugin.tools;
 
-import com.google.javascript.jscomp.*;
+import com.google.javascript.jscomp.CheckLevel;
+import com.google.javascript.jscomp.Compiler;
+import com.google.javascript.jscomp.ErrorFormat;
+import com.google.javascript.jscomp.MessageFormatter;
+import com.google.javascript.jscomp.SortingErrorManager;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 
 /**

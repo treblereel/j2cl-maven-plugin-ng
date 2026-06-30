@@ -1,14 +1,14 @@
 package org.treblereel.j2cl.plugin.task;
 
+import java.nio.file.PathMatcher;
+import java.util.List;
+import java.util.stream.Stream;
+
 import com.google.j2cl.common.SourceUtils;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.tools.GwtIncompatiblePreprocessor;
-
-import java.nio.file.PathMatcher;
-import java.util.List;
-import java.util.stream.Stream;
 
 public class StripSourcesTask extends TaskInput {
 

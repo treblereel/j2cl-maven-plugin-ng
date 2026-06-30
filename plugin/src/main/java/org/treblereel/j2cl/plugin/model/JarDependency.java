@@ -1,12 +1,11 @@
 package org.treblereel.j2cl.plugin.model;
 
-import org.apache.maven.artifact.Artifact;
-import org.treblereel.j2cl.plugin.context.ArtifactResolver;
-
 import java.io.File;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
+
+import org.apache.maven.artifact.Artifact;
+import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 
 public class JarDependency implements Dependency {
 

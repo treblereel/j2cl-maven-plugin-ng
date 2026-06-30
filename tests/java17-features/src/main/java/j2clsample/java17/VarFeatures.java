@@ -16,7 +16,6 @@
 package j2clsample.java17;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.function.BiFunction;
 
 public class VarFeatures {

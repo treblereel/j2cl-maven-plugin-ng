@@ -1,18 +1,22 @@
 package org.treblereel.j2cl.plugin.task;
 
-import org.treblereel.j2cl.plugin.context.BuildContext;
-import org.treblereel.j2cl.plugin.log.BuildLog;
-import org.treblereel.j2cl.plugin.model.Dependency;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.log.BuildLog;
+import org.treblereel.j2cl.plugin.model.Dependency;
 
 public class FinalTask extends TaskInput {
 

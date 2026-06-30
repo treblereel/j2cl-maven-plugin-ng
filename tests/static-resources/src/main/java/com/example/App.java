@@ -16,9 +16,7 @@
 package com.example;
 
 import elemental2.dom.DomGlobal;
-import elemental2.dom.Response;
 import elemental2.promise.Promise;
-import jsinterop.base.Js;
 import jsinterop.annotations.JsType;
 
 @JsType

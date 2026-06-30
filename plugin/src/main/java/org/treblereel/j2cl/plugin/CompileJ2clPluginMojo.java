@@ -9,7 +9,6 @@ import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
 
-
 @Mojo(
         name = "compile",
         defaultPhase = LifecyclePhase.COMPILE,

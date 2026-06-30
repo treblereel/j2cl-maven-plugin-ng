@@ -1,7 +1,6 @@
 package org.treblereel.j2cl.plugin.task;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;

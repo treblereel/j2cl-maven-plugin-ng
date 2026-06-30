@@ -16,7 +16,6 @@
 package example;
 
 import com.google.gwt.core.client.EntryPoint;
-
 import jsinterop.annotations.JsType;
 
 @JsType

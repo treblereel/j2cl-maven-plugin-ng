@@ -1,12 +1,11 @@
 package org.treblereel.j2cl.plugin.config;
 
-import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
-
-import org.treblereel.j2cl.plugin.tools.AptPath;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+
+import org.treblereel.j2cl.plugin.tools.AptPath;
+import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
 
 public interface Config {
 

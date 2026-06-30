@@ -17,7 +17,6 @@
 package com.example;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
-
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -1,14 +1,12 @@
 package org.treblereel.j2cl.plugin.config;
 
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.logging.Log;
-import org.treblereel.j2cl.plugin.log.BuildLog;
-import org.treblereel.j2cl.plugin.tools.AptPath;
-import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.maven.artifact.Artifact;
+import org.treblereel.j2cl.plugin.tools.AptPath;
+import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
 
 public class BuildConfig implements Config {
 

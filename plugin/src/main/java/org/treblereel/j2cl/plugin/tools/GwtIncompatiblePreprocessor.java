@@ -15,14 +15,14 @@
  */
 package org.treblereel.j2cl.plugin.tools;
 
+import java.io.File;
+import java.util.List;
+
 import com.google.j2cl.common.OutputUtils;
 import com.google.j2cl.common.Problems;
 import com.google.j2cl.common.SourceUtils.FileInfo;
 import com.google.j2cl.tools.gwtincompatible.GwtIncompatibleStripper;
 import org.treblereel.j2cl.plugin.log.BuildLog;
-
-import java.io.File;
-import java.util.List;
 
 /**
  * Takes a directory of sources, and removes any types or members that are

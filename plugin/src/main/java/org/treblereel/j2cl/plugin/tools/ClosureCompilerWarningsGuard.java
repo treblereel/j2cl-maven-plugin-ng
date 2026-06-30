@@ -1,11 +1,11 @@
 package org.treblereel.j2cl.plugin.tools;
 
+import java.util.Set;
+
 import com.google.javascript.jscomp.CheckLevel;
 import com.google.javascript.jscomp.JSError;
 import com.google.javascript.jscomp.WarningsGuard;
 import org.jspecify.annotations.Nullable;
-
-import java.util.Set;
 
 public class ClosureCompilerWarningsGuard extends WarningsGuard {
 

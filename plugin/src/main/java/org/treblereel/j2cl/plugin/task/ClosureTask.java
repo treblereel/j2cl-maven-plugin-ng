@@ -1,25 +1,47 @@
 package org.treblereel.j2cl.plugin.task;
 
-import com.google.javascript.jscomp.*;
-import com.google.javascript.jscomp.XtbMessageBundle;
-import com.google.javascript.rhino.StaticSourceFile;
-import org.treblereel.j2cl.plugin.context.BuildContext;
-import org.treblereel.j2cl.plugin.log.BuildLog;
-import org.treblereel.j2cl.plugin.model.Dependency;
-import org.treblereel.j2cl.plugin.model.ReactorDependency;
-import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
-
-
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import com.google.javascript.jscomp.CompilationLevel;
+import com.google.javascript.jscomp.Compiler;
+import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.JSError;
+import com.google.javascript.jscomp.Result;
+import com.google.javascript.jscomp.SourceFile;
+import com.google.javascript.jscomp.SourceMap;
+import com.google.javascript.jscomp.XtbMessageBundle;
+import com.google.javascript.rhino.StaticSourceFile;
+import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.log.BuildLog;
+import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 
 public class ClosureTask extends TaskInput {
 

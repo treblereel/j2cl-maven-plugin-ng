@@ -16,7 +16,6 @@
 package example.helloworld;
 
 import example.lib1.Class1;
-
 import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;

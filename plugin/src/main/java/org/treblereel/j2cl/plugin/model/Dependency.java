@@ -1,8 +1,8 @@
 package org.treblereel.j2cl.plugin.model;
 
-import org.apache.maven.artifact.Artifact;
-
 import java.util.Collection;
+
+import org.apache.maven.artifact.Artifact;
 
 public interface Dependency {
 

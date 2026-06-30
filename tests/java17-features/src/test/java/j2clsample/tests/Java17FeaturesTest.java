@@ -1,7 +1,6 @@
 package j2clsample.tests;
 
 import com.google.j2cl.junit.apt.J2clTestInput;
-
 import j2clsample.java17.InterfaceFeatures;
 import j2clsample.java17.PatternMatching;
 import j2clsample.java17.RecordFeatures;
@@ -9,7 +8,6 @@ import j2clsample.java17.SealedClasses;
 import j2clsample.java17.SwitchExpressions;
 import j2clsample.java17.TextBlocks;
 import j2clsample.java17.VarFeatures;
-
 import org.junit.Assert;
 import org.junit.Test;
 

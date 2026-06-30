@@ -1,7 +1,7 @@
 package com.example;
 
-import jsinterop.annotations.JsType;
 import jsinterop.annotations.JsPackage;
+import jsinterop.annotations.JsType;
 
 @JsType(namespace = JsPackage.GLOBAL, isNative = true)
 public class Foo {

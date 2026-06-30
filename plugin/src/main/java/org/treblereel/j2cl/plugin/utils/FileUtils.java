@@ -1,12 +1,21 @@
 package org.treblereel.j2cl.plugin.utils;
 
-import org.treblereel.j2cl.plugin.model.Dependency;
-
-import java.io.*;
-import java.nio.file.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 import java.util.zip.ZipFile;
+
+import org.treblereel.j2cl.plugin.model.Dependency;
 
 public class FileUtils {
 
