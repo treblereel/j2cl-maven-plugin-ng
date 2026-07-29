@@ -36,6 +36,9 @@
         <module>hello-world-web-components</module>
         <module>issue-41</module>
         <module>transitive-dependencies</module>
+        <module>wasm-hello-world</module>
+        <module>wasm-simple-test</module>
+        <module>wasm-multi-module</module>
     </modules>
 
     <properties>

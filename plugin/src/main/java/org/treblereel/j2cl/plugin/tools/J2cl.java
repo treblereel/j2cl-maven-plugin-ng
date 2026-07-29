@@ -36,6 +36,7 @@ public class J2cl {
     private final File jsOutDir;
     private final BuildLog log;
     private final List<String> patchModuleJavacOptions;
+    private final List<String> wasmEntryPoints;
 
     private static final Map<String, String> NON_BASE_MODULE_PREFIXES = Map.of(
             "java/sql/", "java.sql",
@@ -47,13 +48,18 @@ public class J2cl {
     );
 
     public J2cl(List<File> strippedClasspath, @Nonnull File bootstrap, File jsOutDir, BuildLog log) {
+        this(strippedClasspath, bootstrap, jsOutDir, log, Backend.CLOSURE, ImmutableList.of());
+    }
+
+    public J2cl(List<File> strippedClasspath, @Nonnull File bootstrap, File jsOutDir, BuildLog log,
+                Backend backend, List<String> wasmEntryPoints) {
         this.jsOutDir = jsOutDir;
         this.log = log;
         Path bootstrapPath = resolveFile(bootstrap);
         this.patchModuleJavacOptions = buildPatchModuleOptions(bootstrapPath);
         optionsBuilder = J2clTranspilerOptions.builder()
                 .setFrontend(Frontend.JAVAC)
-                .setBackend(Backend.CLOSURE)
+                .setBackend(backend)
                 .setClasspaths(Stream.concat(Stream.of(bootstrap), strippedClasspath.stream())
                         .map(J2cl::resolveFile)
                         .toList()
@@ -63,6 +69,7 @@ public class J2cl {
                 .setEmitReadableSourceMap(true)
                 .setGenerateKytheIndexingMetadata(false)
                 .setForbiddenAnnotations(ImmutableList.of());
+        this.wasmEntryPoints = wasmEntryPoints;
     }
 
     private static Path resolveFile(File file) {
@@ -81,7 +88,7 @@ public class J2cl {
                     .setSources(sourcesToCompile)
                     .setNativeSources(nativeSources)
                     .setKotlincOptions(ImmutableList.of())
-                    .setWasmEntryPointStrings(ImmutableList.of())
+                    .setWasmEntryPointStrings(ImmutableList.copyOf(wasmEntryPoints))
                     .setObjCNamePrefix("J2kt")
                     .setJavacOptions(javacOptions)
                     .setEnableKlibs(false)

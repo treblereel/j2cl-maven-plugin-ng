@@ -40,4 +40,17 @@ public interface Config {
     default List<AptPath> getExtraAnnotationProcessors() {
         return List.of();
     }
+
+    default String backend() {
+        return "CLOSURE";
+    }
+
+    default List<String> wasmEntryPoints() {
+        return List.of();
+    }
+
+    default File getWasmJreJsZip() {
+        return null;
+    }
+
 }

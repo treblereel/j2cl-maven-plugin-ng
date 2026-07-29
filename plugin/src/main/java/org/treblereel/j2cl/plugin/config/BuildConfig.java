@@ -26,6 +26,9 @@ public class BuildConfig implements Config {
     private final String env;
     private final Map<String, String> annotationProcessorsArgs;
     private final List<AptPath> extraAnnotationProcessors;
+    private final String backend;
+    private final List<String> wasmEntryPoints;
+    private final File wasmJreJsZip;
 
     public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath,
                        String initialScriptFilename, String webappDirectory, String compilationLevel, Map<String, Object> defines,
@@ -43,6 +46,19 @@ public class BuildConfig implements Config {
                        boolean rewritePolyfills, TranslationsFileConfig translationsFile, boolean enableSourcemaps,
                        String languageOut, boolean checkAssertions, String env,
                        Map<String, String> annotationProcessorsArgs, List<AptPath> extraAnnotationProcessors) {
+        this(extraClasspath, extraJsZips, bootstrapClasspath, initialScriptFilename, webappDirectory,
+                compilationLevel, defines, rewritePolyfills, translationsFile, enableSourcemaps,
+                languageOut, checkAssertions, env,
+                annotationProcessorsArgs, extraAnnotationProcessors,
+                "CLOSURE", List.of(), null);
+    }
+
+    public BuildConfig(List<File> extraClasspath, List<Artifact> extraJsZips, File bootstrapClasspath,
+                       String initialScriptFilename, String webappDirectory, String compilationLevel, Map<String, Object> defines,
+                       boolean rewritePolyfills, TranslationsFileConfig translationsFile, boolean enableSourcemaps,
+                       String languageOut, boolean checkAssertions, String env,
+                       Map<String, String> annotationProcessorsArgs, List<AptPath> extraAnnotationProcessors,
+                       String backend, List<String> wasmEntryPoints, File wasmJreJsZip) {
         this.extraClasspath = extraClasspath;
         this.extraJsZips = extraJsZips;
         this.bootstrapClasspath = bootstrapClasspath;
@@ -58,6 +74,9 @@ public class BuildConfig implements Config {
         this.env = env;
         this.annotationProcessorsArgs = annotationProcessorsArgs;
         this.extraAnnotationProcessors = extraAnnotationProcessors;
+        this.backend = backend;
+        this.wasmEntryPoints = wasmEntryPoints;
+        this.wasmJreJsZip = wasmJreJsZip;
     }
 
     @Override
@@ -134,4 +153,20 @@ public class BuildConfig implements Config {
     public List<AptPath> getExtraAnnotationProcessors() {
         return extraAnnotationProcessors;
     }
+
+    @Override
+    public String backend() {
+        return backend;
+    }
+
+    @Override
+    public List<String> wasmEntryPoints() {
+        return wasmEntryPoints;
+    }
+
+    @Override
+    public File getWasmJreJsZip() {
+        return wasmJreJsZip;
+    }
+
 }

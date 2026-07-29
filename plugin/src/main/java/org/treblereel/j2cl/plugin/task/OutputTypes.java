@@ -57,7 +57,20 @@ public enum OutputTypes {
      */
     OPTIMIZED_JS("optimized_js"),
 
-    FINAL_TASK("final_task");
+    FINAL_TASK("final_task"),
+
+    /**
+     * J2CL WASM output (per-library modular WAT: types.wat, imports.wat, contents.wat, summary.binpb)
+     */
+    TRANSPILED_WASM("transpiled_wasm"),
+    /**
+     * Bundled WASM module assembled from all per-library WAT outputs into a single module.wat
+     */
+    WASM_BUNDLED("wasm_bundled"),
+    /**
+     * Optimized WASM binary produced by Binaryen wasm-opt
+     */
+    WASM_OPTIMIZED("wasm_optimized");
 
     private final String name;
 

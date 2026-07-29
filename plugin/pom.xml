@@ -22,7 +22,7 @@
 
         <j2cl.version>v20260527-1</j2cl.version>
         <j2cl.base.version>v20260527-1</j2cl.base.version>
-        <closure.compiler.unshaded.version>v20250903-1</closure.compiler.unshaded.version>
+        <closure.compiler.unshaded.version>v20260629</closure.compiler.unshaded.version>
     </properties>
 
     <dependencies>
@@ -130,31 +130,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
-        <!-- closure compiler dependencies -->
-<!--        <dependency>
+        <dependency>
             <groupId>org.kie.j2cl.tools</groupId>
-            <artifactId>closure-compiler-unshaded</artifactId>
-            <version>${closure.compiler.unshaded.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>failureaccess</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.protobuf</groupId>
-                    <artifactId>protobuf-java</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jspecify</groupId>
-                    <artifactId>jspecify</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>-->
+            <artifactId>backend-wasm</artifactId>
+            <version>${j2cl.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
@@ -168,12 +148,12 @@
         <dependency>
             <groupId>com.google.javascript</groupId>
             <artifactId>closure-compiler-unshaded</artifactId>
-            <version>v20250820</version>
+            <version>${closure.compiler.unshaded.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.javascript</groupId>
             <artifactId>closure-compiler-externs</artifactId>
-            <version>v20250820</version>
+            <version>${closure.compiler.unshaded.version}</version>
         </dependency>
 
         <!-- Selenium for browser automation in tests -->
@@ -222,6 +202,26 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>3.11.4</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protocArtifact>com.google.protobuf:protoc:4.31.0</protocArtifact>
+                            <inputDirectories>
+                                <include>src/main/proto</include>
+                            </inputDirectories>
+                            <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

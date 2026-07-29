@@ -41,6 +41,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.javascript.jscomp.CompilationLevel;
 import com.google.javascript.jscomp.Compiler;
 import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.DependencyOptions;
 import com.google.javascript.jscomp.JSError;
 import com.google.javascript.jscomp.Result;
 import com.google.javascript.jscomp.SourceFile;
@@ -172,8 +173,10 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         File junitEmulJar = getFileWithMavenCoords(junitEmul);
         File gwttestcaseEmulJar = getFileWithMavenCoords(gwttestcaseEmul);
 
+        boolean isWasm = "WASM".equalsIgnoreCase(backend);
+
         List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jreJar),
+                getFileWithMavenCoords(isWasm ? jreWasmJar : jreJar),
                 getFileWithMavenCoords(jsinteropAnnotationsJar),
                 getFileWithMavenCoords(internalAnnotationsJar),
                 getFileWithMavenCoords(jsinteropBaseJar),
@@ -185,12 +188,23 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 gwttestcaseEmulJar
         );
 
-        List<Artifact> extraJsZips = Arrays.asList(
-                getMavenArtifactWithCoords(testJsZip),
-                getMavenArtifactWithCoords(bootstrapJsZip),
-                getMavenArtifactWithCoords(jreJsZip),
-                getMavenArtifactWithCoords(runtimeJsZip)
-        );
+        List<Artifact> extraJsZips;
+        if (isWasm) {
+            extraJsZips = Arrays.asList(
+                    getMavenArtifactWithCoords(bootstrapJsZip),
+                    getMavenArtifactWithCoords(testJsZip),
+                    getMavenArtifactWithCoords(jreWasmJsZip),
+                    getMavenArtifactWithCoords(jreJsZip),
+                    getMavenArtifactWithCoords(runtimeJsZip)
+            );
+        } else {
+            extraJsZips = Arrays.asList(
+                    getMavenArtifactWithCoords(testJsZip),
+                    getMavenArtifactWithCoords(bootstrapJsZip),
+                    getMavenArtifactWithCoords(jreJsZip),
+                    getMavenArtifactWithCoords(runtimeJsZip)
+            );
+        }
 
         // --- Create APT path for junit-processor ---
         List<AptPath> testProcessors;
@@ -205,16 +219,21 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             throw new MojoExecutionException("Failed to read junit-processor service file", e);
         }
 
-        annotationProcessorsArgs.put("testPlatform", "CLOSURE");
+        annotationProcessorsArgs.put("testPlatform", isWasm ? "WASM" : "CLOSURE");
 
-        File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
+        File bootstrapClasspath = getFileWithMavenCoords(isWasm ? this.bootstrapClasspathWasm : this.bootstrapClasspath);
+
+        List<String> testWasmEntryPoints = isWasm ? List.of(".*_Adapter#.*") : wasmEntryPoints;
+
+        File wasmJreJsZip = isWasm ? getFileWithMavenCoords(this.jreWasmJsZip) : null;
 
         BuildConfig buildConfig = new BuildConfig(
                 extraClasspath, extraJsZips, bootstrapClasspath,
                 initialScriptFilename, webappDirectory, compilationLevel,
                 defines, rewritePolyfills, translationsFile, enableSourcemaps,
                 languageOut, checkAssertions, env,
-                annotationProcessorsArgs, testProcessors
+                annotationProcessorsArgs, testProcessors,
+                backend, testWasmEntryPoints, wasmJreJsZip
         );
 
         BuildContext testBuildContext = new BuildContext(
@@ -234,8 +253,13 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
 
         try {
-            TaskInputFactory.create(testDep, testBuildContext, OutputTypes.TRANSPILED_JS, buildLog)
-                    .runTask().join();
+            if (isWasm) {
+                TaskInputFactory.create(testDep, testBuildContext, OutputTypes.WASM_OPTIMIZED, buildLog)
+                        .runTask().join();
+            } else {
+                TaskInputFactory.create(testDep, testBuildContext, OutputTypes.TRANSPILED_JS, buildLog)
+                        .runTask().join();
+            }
         } catch (Exception e) {
             throw new MojoExecutionException("Failed to compile test sources", e);
         }
@@ -266,78 +290,18 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         buildLog.info("Discovered " + generatedTests.length + " test(s)");
 
-        // --- Phase 2: Per-test Closure compilation ---
+        // --- Phase 2: Per-test compilation ---
         buildLog.info("Phase 2: Compiling individual tests...");
 
         Path outputDir = testBuildContext.getOutputDirectory();
         List<Dependency> allDeps = flattenDependencies(testDep);
 
-        // Ensure all dependencies are transpiled to JS (Phase 1 only transpiled the test dep itself)
-        try {
-            var depFutures = allDeps.stream()
-                    .map(dep -> TaskInputFactory.create(dep, testBuildContext, OutputTypes.TRANSPILED_JS, buildLog).runTask())
-                    .toList();
-            for (var future : depFutures) {
-                future.join();
-            }
-        } catch (Exception e) {
-            throw new MojoExecutionException("Failed to transpile test dependencies", e);
-        }
-
-        for (String generatedTest : generatedTests) {
-            String testFilePathWithoutSuffix = generatedTest.substring(0, generatedTest.length() - 3);
-            String testClass = testFilePathWithoutSuffix.replace("/", ".");
-
-            buildLog.info("Compiling test: " + testClass);
-
-            Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
-            if (!Files.exists(testSuiteFile)) {
-                buildLog.warn("Test suite file not found: " + testSuiteFile);
-                continue;
-            }
-
-            try {
-                // Copy .testsuite to temp dir as .js
-                Path tmpDir = Files.createTempDirectory("j2cl-test-" + testClass);
-                Path testJsFile = tmpDir.resolve(testFilePathWithoutSuffix + ".js");
-                Files.createDirectories(testJsFile.getParent());
-                Files.copy(testSuiteFile, testJsFile);
-
-                // Build per-test script filename
-                String testScriptFilename = initialScriptFilename.substring(0, initialScriptFilename.lastIndexOf(".js"))
-                        + "-" + testClass + ".js";
-
-                // Collect all JS sources for Closure
-                List<SourceFile> inputs = collectJsSources(outputDir, testDep, allDeps, tmpDir, buildConfig);
-
-                // Externs
-                List<SourceFile> externs = loadExterns();
-
-                // Closure options
-                CompilerOptions options = createClosureOptions(testScriptFilename);
-
-                // Run Closure
-                Compiler compiler = new Compiler();
-                Result result = compiler.compile(externs, inputs, options);
-
-                if (!result.success) {
-                    for (JSError e : result.errors) {
-                        buildLog.error(e.toString());
-                    }
-                    throw new MojoExecutionException("Closure compilation failed for test: " + testClass);
-                }
-
-                // Write compiled JS
-                Path outputJsPath = Paths.get(webappDirectory).resolve(testScriptFilename);
-                Files.createDirectories(outputJsPath.getParent());
-                Files.writeString(outputJsPath, compiler.toSource(), StandardCharsets.UTF_8);
-
-                // Generate HTML
-                generateTestHtml(outputJsPath, testScriptFilename);
-
-            } catch (IOException e) {
-                throw new MojoExecutionException("Failed to compile test: " + testClass, e);
-            }
+        if (isWasm) {
+            compileWasmTests(testDep, testBuildContext, buildLog, buildConfig,
+                    generatedTests, bytecodeOutput, outputDir);
+        } else {
+            compileClosureTests(testDep, testBuildContext, buildLog, buildConfig,
+                    generatedTests, bytecodeOutput, outputDir, allDeps);
         }
 
         // --- Phase 3: Test Execution ---
@@ -362,6 +326,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                         String name = file.getFileName().toString();
                         if (name.endsWith(".js")) contentType = "application/javascript";
                         else if (name.endsWith(".html")) contentType = "text/html";
+                        else if (name.endsWith(".wasm")) contentType = "application/wasm";
                         else contentType = "application/octet-stream";
                     }
                     exchange.getResponseHeaders().set("Content-Type", contentType);
@@ -501,6 +466,179 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
     }
 
+    private void compileClosureTests(TestReactorDependency testDep, BuildContext testBuildContext,
+                                      BuildLog buildLog, BuildConfig buildConfig,
+                                      String[] generatedTests, Path bytecodeOutput,
+                                      Path outputDir, List<Dependency> allDeps) throws MojoExecutionException {
+        try {
+            var depFutures = allDeps.stream()
+                    .map(dep -> TaskInputFactory.create(dep, testBuildContext, OutputTypes.TRANSPILED_JS, buildLog).runTask())
+                    .toList();
+            for (var future : depFutures) {
+                future.join();
+            }
+        } catch (Exception e) {
+            throw new MojoExecutionException("Failed to transpile test dependencies", e);
+        }
+
+        for (String generatedTest : generatedTests) {
+            String testFilePathWithoutSuffix = generatedTest.substring(0, generatedTest.length() - 3);
+            String testClass = testFilePathWithoutSuffix.replace("/", ".");
+
+            buildLog.info("Compiling test: " + testClass);
+
+            Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
+            if (!Files.exists(testSuiteFile)) {
+                buildLog.warn("Test suite file not found: " + testSuiteFile);
+                continue;
+            }
+
+            try {
+                Path tmpDir = Files.createTempDirectory("j2cl-test-" + testClass);
+                Path testJsFile = tmpDir.resolve(testFilePathWithoutSuffix + ".js");
+                Files.createDirectories(testJsFile.getParent());
+                Files.copy(testSuiteFile, testJsFile);
+
+                String testScriptFilename = initialScriptFilename.substring(0, initialScriptFilename.lastIndexOf(".js"))
+                        + "-" + testClass + ".js";
+
+                List<SourceFile> inputs = collectJsSources(outputDir, testDep, allDeps, tmpDir, buildConfig);
+                List<SourceFile> externs = loadExterns();
+                CompilerOptions options = createClosureOptions(testScriptFilename);
+
+                Compiler compiler = new Compiler();
+                Result result = compiler.compile(externs, inputs, options);
+
+                if (!result.success) {
+                    for (JSError e : result.errors) {
+                        buildLog.error(e.toString());
+                    }
+                    throw new MojoExecutionException("Closure compilation failed for test: " + testClass);
+                }
+
+                Path outputJsPath = Paths.get(webappDirectory).resolve(testScriptFilename);
+                Files.createDirectories(outputJsPath.getParent());
+                Files.writeString(outputJsPath, compiler.toSource(), StandardCharsets.UTF_8);
+
+                generateTestHtml(outputJsPath, testScriptFilename);
+
+            } catch (IOException e) {
+                throw new MojoExecutionException("Failed to compile test: " + testClass, e);
+            }
+        }
+    }
+
+    private void compileWasmTests(TestReactorDependency testDep, BuildContext testBuildContext,
+                                   BuildLog buildLog, BuildConfig buildConfig,
+                                   String[] generatedTests, Path bytecodeOutput,
+                                   Path outputDir) throws MojoExecutionException {
+        String baseName = testBuildContext.getConfig().initialScriptFilename().replace(".js", "");
+
+        Path wasmOptimizedDir = outputDir.resolve(testDep.key()).resolve("wasm_optimized");
+        Path wasmFile = wasmOptimizedDir.resolve(baseName + ".wasm");
+
+        if (!Files.exists(wasmFile)) {
+            throw new MojoExecutionException("WASM output not found: " + wasmFile);
+        }
+
+        try {
+            Path wasmOutputDir = Paths.get(webappDirectory);
+            Path targetWasm = wasmOutputDir.resolve(baseName + ".wasm");
+            Files.createDirectories(targetWasm.getParent());
+            Files.copy(wasmFile, targetWasm, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            Path sourceMap = wasmOptimizedDir.resolve(baseName + ".wasm.map");
+            if (Files.exists(sourceMap)) {
+                Files.copy(sourceMap, wasmOutputDir.resolve(baseName + ".wasm.map"),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to copy WASM output", e);
+        }
+
+        String wasmRelativePath = Paths.get(baseName).getFileName() + ".wasm";
+        String wasmModuleName = "test.wasm.module";
+
+        for (String generatedTest : generatedTests) {
+            String testFilePathWithoutSuffix = generatedTest.substring(0, generatedTest.length() - 3);
+            String testClass = testFilePathWithoutSuffix.replace("/", ".");
+
+            buildLog.info("Compiling WASM test harness: " + testClass);
+
+            Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
+            if (!Files.exists(testSuiteFile)) {
+                buildLog.warn("Test suite file not found: " + testSuiteFile);
+                continue;
+            }
+
+            try {
+                Path tmpDir = Files.createTempDirectory("j2cl-wasm-test-" + testClass);
+
+                String testSuiteContent = Files.readString(testSuiteFile, StandardCharsets.UTF_8);
+                testSuiteContent = testSuiteContent.replace("REPLACEMENT_MODULE_NAME_PLACEHOLDER", wasmModuleName);
+                testSuiteContent = testSuiteContent.replace("REPLACEMENT_BUILD_PATH_PLACEHOLDER", wasmRelativePath);
+
+                Path testJsFile = tmpDir.resolve(testFilePathWithoutSuffix + ".js");
+                Files.createDirectories(testJsFile.getParent());
+                Files.writeString(testJsFile, testSuiteContent, StandardCharsets.UTF_8);
+
+                Path importsJsTxt = outputDir.resolve(testDep.key()).resolve("wasm_bundled").resolve("imports.js.txt");
+                String importsContent = Files.exists(importsJsTxt)
+                        ? Files.readString(importsJsTxt, StandardCharsets.UTF_8) : "";
+
+                Path wasmLoaderFile = tmpDir.resolve("wasm_module_loader.js");
+                Files.writeString(wasmLoaderFile, generateWasmModuleLoaderJs(wasmModuleName, importsContent), StandardCharsets.UTF_8);
+
+                String testScriptFilename = initialScriptFilename.substring(0, initialScriptFilename.lastIndexOf(".js"))
+                        + "-" + testClass + ".js";
+
+                List<SourceFile> inputs = new ArrayList<>();
+                collectJsFromDirectory(tmpDir, inputs);
+                for (File jsZip : buildConfig.getJsZip()) {
+                    inputs.addAll(SourceFile.fromZipFile(jsZip.toPath().toString(), Charset.defaultCharset()));
+                }
+
+                List<SourceFile> externs = loadExterns();
+                CompilerOptions options = createWasmTestClosureOptions(testScriptFilename);
+
+                Compiler compiler = new Compiler();
+                Result result = compiler.compile(externs, inputs, options);
+
+                if (!result.success) {
+                    for (JSError e : result.errors) {
+                        buildLog.error(e.toString());
+                    }
+                    throw new MojoExecutionException("Closure compilation failed for WASM test: " + testClass);
+                }
+
+                Path outputJsPath = Paths.get(webappDirectory).resolve(testScriptFilename);
+                Files.createDirectories(outputJsPath.getParent());
+                Files.writeString(outputJsPath, compiler.toSource(), StandardCharsets.UTF_8);
+
+                generateTestHtml(outputJsPath, testScriptFilename);
+
+            } catch (IOException e) {
+                throw new MojoExecutionException("Failed to compile WASM test: " + testClass, e);
+            }
+        }
+    }
+
+    private String generateWasmModuleLoaderJs(String moduleName, String importsJsContent) {
+        return "goog.module('" + moduleName + "');\n"
+                + "\n"
+                + importsJsContent + "\n"
+                + "\n"
+                + "const options = { 'builtins': ['js-string'], 'importedStringConstants': \"'\" };\n"
+                + "\n"
+                + "async function instantiateStreaming(urlOrResponse) {\n"
+                + "  const response = typeof urlOrResponse == 'string' ? fetch(urlOrResponse) : urlOrResponse;\n"
+                + "  const {instance} = await WebAssembly.instantiateStreaming(response, getImports(), options);\n"
+                + "  return instance;\n"
+                + "}\n"
+                + "\n"
+                + "exports = {instantiateStreaming};\n";
+    }
+
     private List<SourceFile> loadExterns() throws MojoExecutionException {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("externs.zip")) {
             if (is == null) {
@@ -567,6 +705,18 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             }
         }
 
+        return options;
+    }
+
+    private CompilerOptions createWasmTestClosureOptions(String scriptFilename) {
+        CompilerOptions options = new CompilerOptions();
+        options.setClosurePass(true);
+        options.setEnvironment(CompilerOptions.Environment.valueOf(env));
+        options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
+        options.setLanguageOut(CompilerOptions.LanguageMode.ECMASCRIPT5);
+        options.addWarningsGuard(new ClosureCompilerWarningsGuard());
+        options.setDependencyOptions(DependencyOptions.sortOnly());
+        CompilationLevel.SIMPLE_OPTIMIZATIONS.setOptionsForCompilationLevel(options);
         return options;
     }
 

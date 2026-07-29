@@ -8,6 +8,7 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
+import org.treblereel.j2cl.plugin.task.WasmFinalTask;
 
 @Mojo(
         name = "compile",
@@ -18,7 +19,9 @@ public class CompileJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
     protected void process(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         try {
-            if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
+            if ("WASM".equalsIgnoreCase(buildContext.getConfig().backend())) {
+                new WasmFinalTask(project, buildContext, buildLog).runTask().join();
+            } else if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
                 new BundleJarTask(project, buildContext, buildLog).runTask().join();
             } else {
                 new FinalTask(project, buildContext, buildLog).runTask().join();

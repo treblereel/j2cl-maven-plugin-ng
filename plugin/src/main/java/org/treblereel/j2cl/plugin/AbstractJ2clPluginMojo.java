@@ -1,6 +1,7 @@
 package org.treblereel.j2cl.plugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -140,6 +141,25 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     protected Map<String, String> annotationProcessorsArgs = new TreeMap<>();
 
     /**
+     * Selects the compilation backend. Supported values:
+     * <ul>
+     *     <li>{@code CLOSURE} (default) - compiles Java to JavaScript via Closure Compiler</li>
+     *     <li>{@code WASM} - compiles Java to WebAssembly via Binaryen</li>
+     * </ul>
+     */
+    @Parameter(defaultValue = "CLOSURE", property = "backend")
+    protected String backend;
+
+    /**
+     * Entry point patterns for the WASM backend. Each pattern has the format
+     * {@code qualified.ClassName#methodName}, where both parts support {@code .*} as wildcard.
+     * Only used when {@code backend} is {@code WASM}.
+     */
+    @Parameter
+    protected List<String> wasmEntryPoints = new ArrayList<>();
+
+
+    /**
      * Maven-specific parameters.
      */
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
@@ -161,8 +181,17 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     @Parameter(defaultValue = "org.kie.j2cl.tools:jre:" + Versions.J2CL_VERSION, required = true)
     protected String jreJar;
 
+    @Parameter(defaultValue = "org.kie.j2cl.tools:jre-j2wasm:" + Versions.J2CL_VERSION, required = true)
+    protected String jreWasmJar;
+
     @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath:" + Versions.J2CL_VERSION, required = true, alias = "javacBootstrapClasspathJar")
     protected String bootstrapClasspath;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:javac-bootstrap-classpath-wasm:" + Versions.J2CL_VERSION, required = true)
+    protected String bootstrapClasspathWasm;
+
+    @Parameter(defaultValue = "org.kie.j2cl.tools:jre-j2wasm:zip:jszip:" + Versions.J2CL_VERSION, required = true)
+    protected String jreWasmJsZip;
 
     @Parameter(defaultValue = "org.kie.j2cl.tools:jre:zip:jszip:" + Versions.J2CL_VERSION, required = true)
     protected String jreJsZip;
@@ -241,20 +270,29 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 buildLog
         );
 
+        boolean isWasm = "WASM".equalsIgnoreCase(backend);
+
         List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jreJar),
+                getFileWithMavenCoords(isWasm ? jreWasmJar : jreJar),
                 getFileWithMavenCoords(jsinteropAnnotationsJar),
                 getFileWithMavenCoords(internalAnnotationsJar),
                 getFileWithMavenCoords(jsinteropBaseJar),
                 getFileWithMavenCoords(jspecify)
         );
 
-        List<Artifact> extraJsZips = Arrays.asList(
-                getMavenArtifactWithCoords(bootstrapJsZip),
-                getMavenArtifactWithCoords(jreJsZip)
-        );
+        List<Artifact> extraJsZips;
+        if (isWasm) {
+            extraJsZips = List.of();
+        } else {
+            extraJsZips = Arrays.asList(
+                    getMavenArtifactWithCoords(bootstrapJsZip),
+                    getMavenArtifactWithCoords(jreJsZip)
+            );
+        }
 
-        File bootstrapClasspath = getFileWithMavenCoords(this.bootstrapClasspath);
+        File bootstrapClasspath = getFileWithMavenCoords(isWasm ? this.bootstrapClasspathWasm : this.bootstrapClasspath);
+
+        File wasmJreJsZip = isWasm ? getFileWithMavenCoords(this.jreWasmJsZip) : null;
 
         BuildConfig buildConfig = new BuildConfig(
                 extraClasspath,
@@ -270,7 +308,11 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 languageOut,
                 checkAssertions,
                 env,
-                annotationProcessorsArgs
+                annotationProcessorsArgs,
+                List.of(),
+                backend,
+                wasmEntryPoints,
+                wasmJreJsZip
         );
 
         BuildContext buildContext = new BuildContext(

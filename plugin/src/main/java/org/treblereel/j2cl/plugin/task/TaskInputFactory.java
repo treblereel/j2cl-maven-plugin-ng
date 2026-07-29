@@ -15,6 +15,9 @@ public class TaskInputFactory {
             case OPTIMIZED_JS -> new ClosureTask(dep, buildContext, buildLog);
             case BUNDLED_JS -> new ClosureBundleTask(dep, buildContext, buildLog);
             case BUNDLED_JS_APP -> new BundleJarTask(dep, buildContext, buildLog);
+            case TRANSPILED_WASM -> new WasmTranspileTask(dep, buildContext, buildLog);
+            case WASM_BUNDLED -> new WasmBundlerTask(dep, buildContext, buildLog);
+            case WASM_OPTIMIZED -> new BinaryenTask(dep, buildContext, buildLog);
             default -> throw new RuntimeException("Unsupported output type: " + outputTypes);
         };
 
