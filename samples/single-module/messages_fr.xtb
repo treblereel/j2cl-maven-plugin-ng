@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE translationbundle SYSTEM "translationbundle.dtd">
+
+<translationbundle lang="fr">
+    <translation id="8684969945152863440" key="MSG_HELLO_WORLD">Bonjour, le Monde !</translation>
+    <translation id="1604231182115774751" key="MSG_CLICK_ME">Cliquez ici !</translation>
+    <translation id="2482770052069128201" key="MSG_GREETING">Bienvenue, <ph name="NAME" /> !</translation>
+</translationbundle>

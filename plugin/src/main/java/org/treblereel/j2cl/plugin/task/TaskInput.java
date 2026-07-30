@@ -215,7 +215,7 @@ public abstract class TaskInput {
             try {
                 Path marker = Files.createFile(successMarker);
                 if (dependency.isSourceMapped()) {
-                    String hash = Hashing.hash(((ReactorDependency) dependency).getSourcePaths());
+                    String hash = Hashing.hash(((ReactorDependency) dependency).getHashPaths());
                     BuildStatus status = new BuildStatus();
                     Set<OutputTypes> outputTypesSet = new HashSet<>();
                     outputTypesSet.add(getOutputTypes());
@@ -248,7 +248,7 @@ public abstract class TaskInput {
                 try {
                     String json = Files.readString(successMarker);
                     BuildStatus status = gson.fromJson(json, BuildStatus.class);
-                    String currentHash = Hashing.hash(((ReactorDependency) dependency).getSourcePaths());
+                    String currentHash = Hashing.hash(((ReactorDependency) dependency).getHashPaths());
                     return status.getHash().equals(currentHash) && status.getOutputTypes().contains(getOutputTypes());
                 } catch (IOException e) {
                     throw new RuntimeException("Unable to read success marker file: " + successMarker, e);

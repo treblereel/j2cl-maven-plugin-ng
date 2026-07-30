@@ -33,7 +33,9 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
+import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
+import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
 
@@ -67,10 +69,6 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
      *     <li>
      *         {@code WHITESPACE_ONLY} - "WHITESPACE_ONLY removes comments and extra whitespace in the input JS."
      *         Generally not useful in this plugin - slower than BUNDLE, much bigger than ADVANCED_OPTIMIZATIONS
-     *     </li>
-     *     <li>
-     *         {@code BUNDLE} - "Simply orders and concatenates files to the output." The GWT fork of closure also
-     *         prepends define statements, and provides wiring for sourcemaps.
      *     </li>
      *     <li>
      *         {@code BUNDLE_JAR} - Not a "real" closure-compiler option. but instead invokes BUNDLE on each
@@ -323,6 +321,15 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
         );
 
         ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
+        TaskInput.clearCacheForDependency(project.key());
+
+        if (translationsFile != null) {
+            File xtbFile = XtbResolver.resolveTranslationsFile(
+                    translationsFile, defines, this.project.getBasedir(), buildLog);
+            if (xtbFile != null) {
+                project.addAdditionalSourcePath(xtbFile.toPath());
+            }
+        }
 
         process(project, buildContext, buildLog);
     }

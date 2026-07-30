@@ -2,7 +2,6 @@ package org.treblereel.j2cl.plugin.task;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
@@ -20,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -32,11 +30,11 @@ import java.util.zip.ZipInputStream;
 import com.google.javascript.jscomp.CompilationLevel;
 import com.google.javascript.jscomp.Compiler;
 import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.DependencyOptions;
 import com.google.javascript.jscomp.JSError;
 import com.google.javascript.jscomp.Result;
 import com.google.javascript.jscomp.SourceFile;
 import com.google.javascript.jscomp.SourceMap;
-import com.google.javascript.jscomp.XtbMessageBundle;
 import com.google.javascript.rhino.StaticSourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
@@ -215,7 +213,12 @@ public class ClosureTask extends TaskInput {
             options.setDefineReplacements(defs);
         }
         setCompilationLevel(options);
-        setTranslationsFile(options);
+        options.setSkipNonTranspilationPasses(false);
+        options.setClosurePass(true);
+        options.setDependencyOptions(DependencyOptions.sortOnly());
+        org.treblereel.j2cl.plugin.xbt.XtbResolver.applyTranslations(options,
+                buildContext.getConfig().translationsFile(), buildContext.getConfig().defines(),
+                buildContext.getProjectBaseDir(), logger);
 
         // Closure Library files (base.js, long.js, reflect.js) are provided via the bootstrap jsZip
 
@@ -368,79 +371,10 @@ public class ClosureTask extends TaskInput {
         CompilationLevel level = CompilationLevel.fromString(levelStr);
         if (level == null) {
             throw new IllegalArgumentException("Invalid compilationLevel: " + levelStr
-                    + ". Valid values: ADVANCED_OPTIMIZATIONS, SIMPLE_OPTIMIZATIONS, WHITESPACE_ONLY, BUNDLE");
+                    + ". Valid values: ADVANCED_OPTIMIZATIONS, SIMPLE_OPTIMIZATIONS, WHITESPACE_ONLY, BUNDLE_JAR");
         }
         level.setOptionsForCompilationLevel(options);
         logger.info("Using compilation level: " + level);
     }
 
-    private void setTranslationsFile(CompilerOptions options) {
-        org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig tf = buildContext.getConfig().translationsFile();
-        if (tf == null) return;
-
-        File xtbFile = resolveTranslationsFile(tf);
-        if (xtbFile == null) return;
-
-        logger.info("Using translations file: " + xtbFile.getAbsolutePath());
-        try (FileInputStream is = new FileInputStream(xtbFile)) {
-            InputStream source = tf.isAuto()
-                    ? org.treblereel.j2cl.plugin.xbt.XtbPreprocessor.preprocess(is)
-                    : is;
-            options.setMessageBundle(new XtbMessageBundle(source, null));
-            if (source != is) source.close();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to read translations file: " + xtbFile, e);
-        }
-    }
-
-    private File resolveTranslationsFile(org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig tf) {
-        if (tf.getFile() != null && !tf.getFile().isEmpty()) {
-            File f = new File(tf.getFile());
-            if (!f.exists()) {
-                throw new RuntimeException("Translations file not found: " + f.getAbsolutePath());
-            }
-            return f;
-        }
-        if (tf.isAuto()) {
-            Object locale = buildContext.getConfig().defines().get("goog.LOCALE");
-            if (locale == null) {
-                logger.warn("translationsFile auto=true but goog.LOCALE not set in defines");
-                return null;
-            }
-            return findXtbByLocale(locale.toString());
-        }
-        return null;
-    }
-
-    private File findXtbByLocale(String locale) {
-        String normalizedLocale = locale.replace("-", "_");
-        File baseDir = buildContext.getProjectBaseDir();
-
-        Path[] searchRoots = {
-                baseDir.toPath(),
-                baseDir.toPath().resolve("src/main/java"),
-                baseDir.toPath().resolve("src/main/resources")
-        };
-
-        for (Path root : searchRoots) {
-            if (!Files.exists(root)) continue;
-            try (Stream<Path> walk = Files.walk(root)) {
-                Optional<Path> match = walk
-                        .filter(Files::isRegularFile)
-                        .filter(p -> p.toString().endsWith(".xtb"))
-                        .filter(p -> {
-                            String name = p.getFileName().toString();
-                            return name.contains(locale) || name.contains(normalizedLocale);
-                        })
-                        .findFirst();
-                if (match.isPresent()) {
-                    return match.get().toFile();
-                }
-            } catch (IOException e) {
-                logger.warn("Failed to scan for XTB files in " + root + ": " + e.getMessage());
-            }
-        }
-        logger.warn("No XTB file found for locale '" + locale + "' in " + baseDir);
-        return null;
-    }
 }

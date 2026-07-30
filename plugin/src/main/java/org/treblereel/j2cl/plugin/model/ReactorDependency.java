@@ -19,10 +19,15 @@ public class ReactorDependency implements Dependency {
 
     private final MavenProject project;
     private final ArtifactResolver artifactResolver;
+    private final List<Path> additionalSourcePaths = new ArrayList<>();
 
     public ReactorDependency(MavenProject project, ArtifactResolver artifactResolver) {
         this.project = project;
         this.artifactResolver = artifactResolver;
+    }
+
+    public void addAdditionalSourcePath(Path path) {
+        additionalSourcePaths.add(path);
     }
 
     @Override
@@ -94,6 +99,12 @@ public class ReactorDependency implements Dependency {
                 result.add(resourcePath);
             }
         }
+        return result;
+    }
+
+    public List<Path> getHashPaths() {
+        List<Path> result = new ArrayList<>(getSourcePaths());
+        result.addAll(additionalSourcePaths);
         return result;
     }
 

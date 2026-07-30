@@ -3,7 +3,6 @@ package org.treblereel.j2cl.plugin;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +25,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
@@ -45,7 +43,6 @@ import com.google.javascript.jscomp.DependencyOptions;
 import com.google.javascript.jscomp.JSError;
 import com.google.javascript.jscomp.Result;
 import com.google.javascript.jscomp.SourceFile;
-import com.google.javascript.jscomp.XtbMessageBundle;
 import com.google.javascript.rhino.StaticSourceFile;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.maven.artifact.Artifact;
@@ -78,6 +75,7 @@ import org.treblereel.j2cl.plugin.task.TaskInputFactory;
 import org.treblereel.j2cl.plugin.tools.AptPath;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 import org.treblereel.j2cl.plugin.tools.ServiceFileReader;
+import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 @Mojo(
         name = "test",
@@ -321,13 +319,14 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 Path file = webRoot.resolve(exchange.getRequestURI().getPath().substring(1));
                 if (Files.exists(file) && !Files.isDirectory(file)) {
                     byte[] bytes = Files.readAllBytes(file);
-                    String contentType = Files.probeContentType(file);
-                    if (contentType == null) {
-                        String name = file.getFileName().toString();
-                        if (name.endsWith(".js")) contentType = "application/javascript";
-                        else if (name.endsWith(".html")) contentType = "text/html";
-                        else if (name.endsWith(".wasm")) contentType = "application/wasm";
-                        else contentType = "application/octet-stream";
+                    String name = file.getFileName().toString();
+                    String contentType;
+                    if (name.endsWith(".html")) contentType = "text/html";
+                    else if (name.endsWith(".js")) contentType = "application/javascript";
+                    else if (name.endsWith(".wasm")) contentType = "application/wasm";
+                    else {
+                        contentType = Files.probeContentType(file);
+                        if (contentType == null) contentType = "application/octet-stream";
                     }
                     exchange.getResponseHeaders().set("Content-Type", contentType);
                     exchange.sendResponseHeaders(200, bytes.length);
@@ -689,21 +688,11 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         } else {
             CompilationLevel.BUNDLE.setOptionsForCompilationLevel(options);
         }
+        options.setSkipNonTranspilationPasses(false);
+        options.setClosurePass(true);
+        options.setDependencyOptions(DependencyOptions.sortOnly());
 
-        if (translationsFile != null) {
-            File xtbFile = resolveTranslationsFile(translationsFile);
-            if (xtbFile != null) {
-                try (FileInputStream is = new FileInputStream(xtbFile)) {
-                    InputStream source = translationsFile.isAuto()
-                            ? org.treblereel.j2cl.plugin.xbt.XtbPreprocessor.preprocess(is)
-                            : is;
-                    options.setMessageBundle(new XtbMessageBundle(source, null));
-                    if (source != is) source.close();
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to read translations file: " + xtbFile, e);
-                }
-            }
-        }
+        XtbResolver.applyTranslations(options, translationsFile, defines, project.getBasedir(), new MavenBuildLog(this));
 
         return options;
     }
@@ -734,56 +723,6 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
     }
 
-    private File resolveTranslationsFile(org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig tf) {
-        if (tf.getFile() != null && !tf.getFile().isEmpty()) {
-            File f = new File(tf.getFile());
-            if (!f.exists()) {
-                throw new RuntimeException("Translations file not found: " + f.getAbsolutePath());
-            }
-            return f;
-        }
-        if (tf.isAuto()) {
-            Object locale = defines.get("goog.LOCALE");
-            if (locale == null) {
-                getLog().warn("translationsFile auto=true but goog.LOCALE not set in defines");
-                return null;
-            }
-            return findXtbByLocale(locale.toString());
-        }
-        return null;
-    }
-
-    private File findXtbByLocale(String locale) {
-        String normalizedLocale = locale.replace("-", "_");
-        File baseDir = project.getBasedir();
-
-        Path[] searchRoots = {
-                baseDir.toPath(),
-                baseDir.toPath().resolve("src/main/java"),
-                baseDir.toPath().resolve("src/main/resources")
-        };
-
-        for (Path root : searchRoots) {
-            if (!Files.exists(root)) continue;
-            try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
-                Optional<Path> match = walk
-                        .filter(Files::isRegularFile)
-                        .filter(p -> p.toString().endsWith(".xtb"))
-                        .filter(p -> {
-                            String name = p.getFileName().toString();
-                            return name.contains(locale) || name.contains(normalizedLocale);
-                        })
-                        .findFirst();
-                if (match.isPresent()) {
-                    return match.get().toFile();
-                }
-            } catch (IOException e) {
-                getLog().warn("Failed to scan for XTB files in " + root + ": " + e.getMessage());
-            }
-        }
-        getLog().warn("No XTB file found for locale '" + locale + "' in " + baseDir);
-        return null;
-    }
 
     private List<Dependency> flattenDependencies(Dependency root) {
         Set<Dependency> processed = new HashSet<>();

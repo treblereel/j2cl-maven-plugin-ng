@@ -161,6 +161,25 @@
                             </defines>
                         </configuration>
                     </execution>
+
+                    <!-- Test 7: BUNDLE_JAR compilation level with XTB translations, Czech -->
+                    <execution>
+                        <id>test-bundle-jar-cz</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <compilationLevel>BUNDLE_JAR</compilationLevel>
+                            <initialScriptFilename>translationsfile/test-bundle-jar-cz.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/MyTranslationBundle_cz.xtb</file>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>cz</goog.LOCALE>
+                                <holder.value>Asi se něco stalo!</holder.value>
+                            </defines>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
