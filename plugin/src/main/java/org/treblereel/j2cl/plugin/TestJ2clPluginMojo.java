@@ -239,10 +239,25 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 new org.apache.maven.plugin.PluginParameterExpressionEvaluator(session, mojoExecution)
         );
 
+        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+            testBuildContext.setIgnoreMavenAnnotationProcessors(true);
+        }
+
         // --- Phase 1: Test Compilation and Discovery ---
         buildLog.info("Phase 1: Compiling test sources and discovering tests...");
 
         ReactorDependency mainDep = new ReactorDependency(project, artifactResolver);
+
+        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+            java.nio.file.Path mainSource = java.nio.file.Paths.get(project.getBuild().getSourceDirectory());
+            for (String root : project.getCompileSourceRoots()) {
+                java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
+                if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
+                    mainDep.addAdditionalSourceDirectory(rootPath);
+                }
+            }
+        }
+
         TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep);
 
         if (testDep.getSourcePaths().isEmpty()) {
@@ -692,7 +707,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         options.setClosurePass(true);
         options.setDependencyOptions(DependencyOptions.sortOnly());
 
-        XtbResolver.applyTranslations(options, translationsFile, defines, project.getBasedir(), new MavenBuildLog(this));
+        XtbResolver.applyTranslations(options, translationsFile, defines, project.getBasedir(), java.util.Collections.emptyList(), new MavenBuildLog(this));
 
         return options;
     }

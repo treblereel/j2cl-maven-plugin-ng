@@ -139,6 +139,16 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     protected Map<String, String> annotationProcessorsArgs = new TreeMap<>();
 
     /**
+     * Controls how annotation processors are discovered for Turbine compilation.
+     * <ul>
+     *     <li>{@code MAVEN} (default) - reads annotationProcessorPaths from maven-compiler-plugin</li>
+     *     <li>{@code IGNORE_MAVEN} - ignores maven-compiler-plugin config; only uses provided-scope processors</li>
+     * </ul>
+     */
+    @Parameter(defaultValue = "MAVEN")
+    protected String annotationProcessorMode;
+
+    /**
      * Selects the compilation backend. Supported values:
      * <ul>
      *     <li>{@code CLOSURE} (default) - compiles Java to JavaScript via Closure Compiler</li>
@@ -320,13 +330,28 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
         );
 
+        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+            buildContext.setIgnoreMavenAnnotationProcessors(true);
+        }
+
         ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
         TaskInput.clearCacheForDependency(project.key());
 
+        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+            java.nio.file.Path mainSource = java.nio.file.Paths.get(this.project.getBuild().getSourceDirectory());
+            for (String root : this.project.getCompileSourceRoots()) {
+                java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
+                if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
+                    project.addAdditionalSourceDirectory(rootPath);
+                }
+            }
+        }
+
         if (translationsFile != null) {
-            File xtbFile = XtbResolver.resolveTranslationsFile(
-                    translationsFile, defines, this.project.getBasedir(), buildLog);
-            if (xtbFile != null) {
+            java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
+                    translationsFile, defines, this.project.getBasedir(),
+                    buildContext.getAdditionalXtbSearchPaths(), buildLog);
+            for (File xtbFile : xtbFiles) {
                 project.addAdditionalSourcePath(xtbFile.toPath());
             }
         }

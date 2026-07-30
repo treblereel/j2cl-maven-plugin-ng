@@ -35,6 +35,7 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
+import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 
@@ -49,7 +50,7 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 )
 public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
-    @Parameter(defaultValue = "SIMPLE_OPTIMIZATIONS", property = "j2cl.watch.compilationLevel")
+    @Parameter(property = "j2cl.watch.compilationLevel")
     protected String watchCompilationLevel;
 
     @Parameter(defaultValue = "true", property = "j2cl.watch.enableSourcemaps")
@@ -98,7 +99,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         BuildConfig buildConfig = new BuildConfig(
                 extraClasspath, extraJsZips, bootstrapClasspathFile,
-                initialScriptFilename, webappDirectory, watchCompilationLevel,
+                initialScriptFilename, webappDirectory,
+                resolveWatchCompilationLevel(),
                 defines, rewritePolyfills, translationsFile, watchEnableSourcemaps,
                 languageOut, true, env,
                 annotationProcessorsArgs
@@ -114,10 +116,25 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         doWatch(reactorProject, buildContext, buildLog);
     }
 
+    private String resolveWatchCompilationLevel() {
+        if (watchCompilationLevel != null) {
+            return watchCompilationLevel;
+        }
+        return compilationLevel;
+    }
+
+    private void runPipeline(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
+        if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
+            new BundleJarTask(project, buildContext, buildLog).runTask().join();
+        } else {
+            new FinalTask(project, buildContext, buildLog).runTask().join();
+        }
+    }
+
     private void doWatch(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         buildLog.info("Running initial compilation...");
         try {
-            new FinalTask(project, buildContext, buildLog).runTask().join();
+            runPipeline(project, buildContext, buildLog);
             buildLog.info("Initial compilation complete.");
         } catch (Exception e) {
             buildLog.error("Initial compilation failed: " + e.getMessage());
@@ -190,7 +207,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         buildContext.resetFailed();
 
         try {
-            new FinalTask(project, buildContext, buildLog).runTask().join();
+            runPipeline(project, buildContext, buildLog);
             long elapsed = System.currentTimeMillis() - start;
             buildLog.info(String.format("Recompilation complete in %.1fs", elapsed / 1000.0));
         } catch (Exception e) {

@@ -28,6 +28,10 @@
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
                 <version>1.0-SNAPSHOT</version>
+                <configuration>
+                    <compilationLevel>BUNDLE_JAR</compilationLevel>
+                    <initialScriptFilename>app.js</initialScriptFilename>
+                </configuration>
                 <executions>
                     <execution>
                         <id>compile-en</id>

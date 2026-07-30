@@ -23,7 +23,7 @@
         <module>java17-features</module>
         <module>java-assertions</module>
         <module>top-level-source-file</module>
-        <module>translationsfile</module>
+        <module>translation</module>
         <module>static-resources</module>
         <module>annotation-processor-in-reactor</module>
         <module>annotation-processor-in-reactor-args</module>

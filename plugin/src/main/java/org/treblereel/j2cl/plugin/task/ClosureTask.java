@@ -218,7 +218,7 @@ public class ClosureTask extends TaskInput {
         options.setDependencyOptions(DependencyOptions.sortOnly());
         org.treblereel.j2cl.plugin.xbt.XtbResolver.applyTranslations(options,
                 buildContext.getConfig().translationsFile(), buildContext.getConfig().defines(),
-                buildContext.getProjectBaseDir(), logger);
+                buildContext.getProjectBaseDir(), buildContext.getAdditionalXtbSearchPaths(), logger);
 
         // Closure Library files (base.js, long.js, reflect.js) are provided via the bootstrap jsZip
 

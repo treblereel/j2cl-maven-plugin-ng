@@ -165,6 +165,8 @@ public class ByteCodeTask extends TaskInput {
                 logger.debug("Turbine " + k + " took " + d.toMillis() + "ms");
             });
 
+            buildContext.addXtbSearchPath(outputPath());
+
         } catch (TurbineError e) {
             throw new RuntimeException("Turbine compilation failed at dependency " + dependency.key(), e);
         } catch (Exception e) {

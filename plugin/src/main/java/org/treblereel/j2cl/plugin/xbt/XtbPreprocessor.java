@@ -27,14 +27,11 @@ public class XtbPreprocessor {
     private static final String PH_SELF_CLOSE = "/>";
 
     public static InputStream preprocess(InputStream input) throws Exception {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setNamespaceAware(false);
-        dbf.setValidating(false);
-        dbf.setFeature("http://xml.org/sax/features/namespaces", false);
-        dbf.setFeature("http://xml.org/sax/features/validation", false);
-        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false);
-        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        return preprocess(input, null);
+    }
 
+    public static InputStream preprocess(InputStream input, String locale) throws Exception {
+        DocumentBuilderFactory dbf = createDocumentBuilderFactory();
         DocumentBuilder db = dbf.newDocumentBuilder();
         Document doc = db.parse(input);
         doc.getDocumentElement().normalize();
@@ -44,8 +41,9 @@ public class XtbPreprocessor {
             return new ByteArrayInputStream(new byte[0]);
         }
 
-        String lang = translationbundleNode.item(0).getAttributes().getNamedItem("lang").getNodeValue();
-        NodeList children = translationbundleNode.item(0).getChildNodes();
+        Node selectedBundle = selectBundle(translationbundleNode, locale);
+
+        String lang = selectedBundle.getAttributes().getNamedItem("lang").getNodeValue();
 
         StringBuffer sb = new StringBuffer();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -55,37 +53,7 @@ public class XtbPreprocessor {
         sb.append("<translationbundle lang=\"" + lang + "\">");
         sb.append("\n");
 
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
-            if (!"translation".equals(node.getNodeName())) {
-                continue;
-            }
-
-            sb.append("  <translation id=\"");
-            sb.append(node.getAttributes().getNamedItem("id").getNodeValue());
-            sb.append("\"");
-
-            if (node.getAttributes().getNamedItem("key") != null) {
-                sb.append(" key=\"");
-                sb.append(escape(node.getAttributes().getNamedItem("key").getNodeValue()));
-                sb.append("\"");
-            }
-            sb.append(">");
-
-            if (node.hasChildNodes()) {
-                StringBuffer innerContent = new StringBuffer();
-                for (int j = 0; j < node.getChildNodes().getLength(); j++) {
-                    innerContent.append(getInnerContent(node.getChildNodes().item(j)));
-                }
-                String result = parse(innerContent.toString())
-                        .stream()
-                        .collect(Collectors.joining(""));
-                sb.append(result);
-            }
-
-            sb.append("</translation>");
-            sb.append("\n");
-        }
+        appendTranslations(sb, selectedBundle);
 
         sb.append("</translationbundle>");
         sb.append("\n");
@@ -155,10 +123,109 @@ public class XtbPreprocessor {
         return parts;
     }
 
+    public static InputStream merge(List<InputStream> inputs, String locale) throws Exception {
+        DocumentBuilderFactory dbf = createDocumentBuilderFactory();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+
+        String lang = locale != null ? locale : "en";
+        StringBuffer sb = new StringBuffer();
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.append("\n");
+        sb.append("<!DOCTYPE translationbundle SYSTEM \"translationbundle.dtd\">");
+        sb.append("\n");
+        sb.append("<translationbundle lang=\"" + lang + "\">");
+        sb.append("\n");
+
+        for (InputStream input : inputs) {
+            Document doc = db.parse(input);
+            doc.getDocumentElement().normalize();
+
+            NodeList translationbundleNode = doc.getElementsByTagName("translationbundle");
+            if (translationbundleNode.getLength() == 0) {
+                continue;
+            }
+
+            Node selectedBundle = selectBundle(translationbundleNode, locale);
+            Node langAttr = selectedBundle.getAttributes().getNamedItem("lang");
+            if (langAttr != null) {
+                lang = langAttr.getNodeValue();
+            }
+            appendTranslations(sb, selectedBundle);
+        }
+
+        sb.append("</translationbundle>");
+        sb.append("\n");
+
+        return new ByteArrayInputStream(sb.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void appendTranslations(StringBuffer sb, Node bundle) {
+        NodeList children = bundle.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node node = children.item(i);
+            if (!"translation".equals(node.getNodeName())) {
+                continue;
+            }
+
+            sb.append("  <translation id=\"");
+            sb.append(node.getAttributes().getNamedItem("id").getNodeValue());
+            sb.append("\"");
+
+            if (node.getAttributes().getNamedItem("key") != null) {
+                sb.append(" key=\"");
+                sb.append(escape(node.getAttributes().getNamedItem("key").getNodeValue()));
+                sb.append("\"");
+            }
+            sb.append(">");
+
+            if (node.hasChildNodes()) {
+                StringBuffer innerContent = new StringBuffer();
+                for (int j = 0; j < node.getChildNodes().getLength(); j++) {
+                    innerContent.append(getInnerContent(node.getChildNodes().item(j)));
+                }
+                String result = parse(innerContent.toString())
+                        .stream()
+                        .collect(Collectors.joining(""));
+                sb.append(result);
+            }
+
+            sb.append("</translation>");
+            sb.append("\n");
+        }
+    }
+
+    private static DocumentBuilderFactory createDocumentBuilderFactory() throws Exception {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setNamespaceAware(false);
+        dbf.setValidating(false);
+        dbf.setFeature("http://xml.org/sax/features/namespaces", false);
+        dbf.setFeature("http://xml.org/sax/features/validation", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        return dbf;
+    }
+
+    private static Node selectBundle(NodeList bundles, String locale) {
+        if (locale == null || bundles.getLength() == 1) {
+            return bundles.item(0);
+        }
+        String normalized = locale.replace("-", "_");
+        for (int i = 0; i < bundles.getLength(); i++) {
+            Node bundle = bundles.item(i);
+            Node langAttr = bundle.getAttributes().getNamedItem("lang");
+            if (langAttr != null) {
+                String lang = langAttr.getNodeValue();
+                if (locale.equals(lang) || normalized.equals(lang)) {
+                    return bundle;
+                }
+            }
+        }
+        return bundles.item(0);
+    }
+
     static String escape(String part) {
         return part.replace("<", "&lt;")
                 .replace(">", "&gt;")
-                .replace("'", "&apos;")
                 .replace("\"", "&quot;")
                 .replace("&", "&amp;");
     }

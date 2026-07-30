@@ -20,6 +20,7 @@ public class ReactorDependency implements Dependency {
     private final MavenProject project;
     private final ArtifactResolver artifactResolver;
     private final List<Path> additionalSourcePaths = new ArrayList<>();
+    private final List<Path> additionalSourceDirectories = new ArrayList<>();
 
     public ReactorDependency(MavenProject project, ArtifactResolver artifactResolver) {
         this.project = project;
@@ -28,6 +29,10 @@ public class ReactorDependency implements Dependency {
 
     public void addAdditionalSourcePath(Path path) {
         additionalSourcePaths.add(path);
+    }
+
+    public void addAdditionalSourceDirectory(Path path) {
+        additionalSourceDirectories.add(path);
     }
 
     @Override
@@ -99,6 +104,9 @@ public class ReactorDependency implements Dependency {
                 result.add(resourcePath);
             }
         }
+
+        result.addAll(additionalSourceDirectories);
+
         return result;
     }
 

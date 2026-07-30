@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 
+import com.google.javascript.jscomp.CompilationLevel;
 import com.google.javascript.jscomp.Compiler;
 import com.google.javascript.jscomp.CompilerOptions;
 import com.google.javascript.jscomp.Result;
@@ -39,10 +40,10 @@ public class TranslateJsTask extends TaskInput {
             return;
         }
 
-        File xtbFile = XtbResolver.resolveTranslationsFile(
+        java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
                 tf, buildContext.getConfig().defines(),
-                buildContext.getProjectBaseDir(), logger);
-        if (xtbFile == null) {
+                buildContext.getProjectBaseDir(), buildContext.getAdditionalXtbSearchPaths(), logger);
+        if (xtbFiles.isEmpty()) {
             copyAllFiles(transpiled);
             return;
         }
@@ -52,9 +53,15 @@ public class TranslateJsTask extends TaskInput {
             try {
                 Files.createDirectories(targetPath.getParent());
 
+                String sourcePath = fe.getSourcePath().toString();
+                if (!sourcePath.endsWith(".js") || sourcePath.endsWith(".native.js")) {
+                    Files.copy(fe.getAbsolutePath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+                    continue;
+                }
+
                 String content = Files.readString(fe.getAbsolutePath(), StandardCharsets.UTF_8);
                 if (content.contains("goog.getMsg")) {
-                    String translated = applyTranslations(content, fe.getSourcePath().toString(), tf, xtbFile);
+                    String translated = applyTranslations(content, fe.getSourcePath().toString(), xtbFiles);
                     Files.writeString(targetPath, translated, StandardCharsets.UTF_8);
                 } else {
                     Files.copy(fe.getAbsolutePath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
@@ -66,13 +73,15 @@ public class TranslateJsTask extends TaskInput {
     }
 
     private String applyTranslations(String source, String name,
-                                      TranslationsFileConfig tf, File xtbFile) {
+                                      java.util.List<File> xtbFiles) {
         CompilerOptions options = new CompilerOptions();
-        options.setSkipNonTranspilationPasses(false);
+        CompilationLevel.WHITESPACE_ONLY.setOptionsForCompilationLevel(options);
         options.setClosurePass(false);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.setLanguageOut(CompilerOptions.LanguageMode.NO_TRANSPILE);
-        XtbResolver.applyXtbFile(options, tf, xtbFile, logger);
+        options.setApplyInputSourceMaps(false);
+        Object locale = buildContext.getConfig().defines().get("goog.LOCALE");
+        XtbResolver.applyXtbFiles(options, xtbFiles, locale != null ? locale.toString() : null, logger);
 
         Compiler compiler = new Compiler();
         compiler.disableThreads();

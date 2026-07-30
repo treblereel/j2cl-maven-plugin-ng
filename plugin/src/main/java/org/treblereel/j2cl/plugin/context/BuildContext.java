@@ -1,6 +1,7 @@
 package org.treblereel.j2cl.plugin.context;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,7 +48,14 @@ public class BuildContext {
   }
 
   public List<AptPath> getAPTProcessorPaths(MavenProject project) {
+    if (ignoreMavenAnnotationProcessors) {
+      return List.of();
+    }
     return APTProcessors.getAPTProcessorPaths(project, artifactResolver, evaluator);
+  }
+
+  public void setIgnoreMavenAnnotationProcessors(boolean ignore) {
+    this.ignoreMavenAnnotationProcessors = ignore;
   }
 
   public void markFailed() {
@@ -72,5 +80,19 @@ public class BuildContext {
 
   public java.io.File getProjectBaseDir() {
     return project.getBasedir();
+  }
+
+  private boolean ignoreMavenAnnotationProcessors;
+
+  private final List<Path> additionalXtbSearchPaths = new ArrayList<>();
+
+  public List<Path> getAdditionalXtbSearchPaths() {
+    return additionalXtbSearchPaths;
+  }
+
+  public void addXtbSearchPath(Path path) {
+    if (!additionalXtbSearchPaths.contains(path)) {
+      additionalXtbSearchPaths.add(path);
+    }
   }
 }

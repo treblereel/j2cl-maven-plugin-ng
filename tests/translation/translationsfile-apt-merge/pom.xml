@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.treblereel.j2cl.plugin.tests</groupId>
+        <artifactId>translation-tests</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>translationsfile-apt-merge</artifactId>
+    <name>Test: Translation APT Merge (manual XTB + gwt3-processors)</name>
+    <description>Verifies that manual XTB and APT-generated XTB files are merged into one build</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.jsinterop</groupId>
+            <artifactId>jsinterop-annotations</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.treblereel.j2cl.processors</groupId>
+            <artifactId>annotations</artifactId>
+            <version>0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-emul</artifactId>
+            <version>v20260527-1</version>
+            <classifier>sources</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>gwttestcase-emul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.kie.j2cl.tools</groupId>
+            <artifactId>junit-runtime</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.properties</include>
+                    <include>**/*.xtb</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.treblereel.j2cl.processors</groupId>
+                            <artifactId>processors</artifactId>
+                            <version>0.10</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.treblereel.j2cl.plugin</groupId>
+                <artifactId>j2cl-maven-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <configuration>
+                    <annotationProcessorMode>IGNORE_MAVEN</annotationProcessorMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- Test 1: default (no translation, English baseline) -->
+                    <execution>
+                        <id>test-default</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-apt-merge/test-default.js</initialScriptFilename>
+                            <defines>
+                                <holder.value>I guess something happened!</holder.value>
+                                <holder.aptValue>Hello World</holder.aptValue>
+                            </defines>
+                        </configuration>
+                    </execution>
+
+                    <!-- Test 2: Spanish - manual XTB + APT-generated XTB merged -->
+                    <execution>
+                        <id>test-es</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <initialScriptFilename>translationsfile-apt-merge/test-es.js</initialScriptFilename>
+                            <translationsFile>
+                                <file>${project.basedir}/messages_es.xtb</file>
+                                <auto>true</auto>
+                            </translationsFile>
+                            <defines>
+                                <goog.LOCALE>es</goog.LOCALE>
+                                <holder.value>Supongo que algo paso!</holder.value>
+                                <holder.aptValue>Hola Mundo</holder.aptValue>
+                            </defines>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
