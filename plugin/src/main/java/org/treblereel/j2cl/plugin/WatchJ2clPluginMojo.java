@@ -39,6 +39,7 @@ import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.task.WasmFinalTask;
+import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
@@ -140,6 +141,14 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                         reactorProject.addAdditionalSourceDirectory(rootPath);
                     }
                 }
+            }
+
+            List<java.io.File> xtbFiles =
+                    XtbResolver.resolveTranslationsFiles(
+                            translationsFile, defines, this.project.getBasedir(),
+                            buildContext.getAdditionalXtbSearchPaths(), buildLog);
+            for (java.io.File xtbFile : xtbFiles) {
+                reactorProject.addAdditionalSourcePath(xtbFile.toPath());
             }
 
             doWatch(reactorProject, buildContext, buildLog);

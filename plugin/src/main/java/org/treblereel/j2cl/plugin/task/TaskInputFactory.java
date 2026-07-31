@@ -12,7 +12,7 @@ public class TaskInputFactory {
             case UNZIPPED_DEPENDENCIES -> new UnzipTaskInput(dep, buildContext, buildLog);
             case STRIPPED_SOURCES -> new StripSourcesTask(dep, buildContext, buildLog);
             case TRANSPILED_JS -> new J2CLTask(dep, buildContext, buildLog);
-            case TRANSLATED_JS -> new TranslateJsTask(dep, buildContext, buildLog);
+            case CLOSURE_PASS -> new ClosurePassTask(dep, buildContext, buildLog);
             case OPTIMIZED_JS -> new ClosureTask(dep, buildContext, buildLog);
             case BUNDLED_JS -> new ClosureBundleTask(dep, buildContext, buildLog);
             case BUNDLED_JS_APP -> new BundleJarTask(dep, buildContext, buildLog);

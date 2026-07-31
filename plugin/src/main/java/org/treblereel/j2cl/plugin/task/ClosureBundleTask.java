@@ -68,9 +68,7 @@ public class ClosureBundleTask extends TaskInput {
 
     @Override
     public void process() {
-        boolean hasTranslations = buildContext.getConfig().translationsFile() != null;
-        TaskOutput transpiled = input(dependency,
-                hasTranslations ? OutputTypes.TRANSLATED_JS : OutputTypes.TRANSPILED_JS);
+        TaskOutput transpiled = input(dependency, OutputTypes.CLOSURE_PASS);
         TaskOutput unzipped = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
 
         List<FileEntry> jsFiles = Stream.concat(

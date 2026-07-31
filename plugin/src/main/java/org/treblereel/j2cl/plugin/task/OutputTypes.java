@@ -48,7 +48,7 @@ public enum OutputTypes {
      * Transpiled JS with goog.getMsg() calls replaced by XTB translations.
      * When no translations are configured, identical to TRANSPILED_JS.
      */
-    TRANSLATED_JS("translated_js"),
+    CLOSURE_PASS("closure_pass"),
     /**
      * Single JS file with all sources, unpruned, from a project
      */

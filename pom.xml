@@ -60,7 +60,7 @@
         <maven.jar.plugin.version>3.5.0</maven.jar.plugin.version>
         <maven.clean.plugin.version>3.5.0</maven.clean.plugin.version>
         <maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
-        <maven.surefire.plugin.version>3.0.0-M5</maven.surefire.plugin.version>
+        <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
         <maven.flatten.plugin>1.2.2</maven.flatten.plugin>
         <maven.checkstyle.plugin>3.3.1</maven.checkstyle.plugin>
         <maven.central.publishing.plugin>0.10.0</maven.central.publishing.plugin>

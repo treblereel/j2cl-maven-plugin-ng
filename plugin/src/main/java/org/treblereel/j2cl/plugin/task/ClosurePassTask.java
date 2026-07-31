@@ -16,32 +16,25 @@ import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
-import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
-public class TranslateJsTask extends TaskInput {
+public class ClosurePassTask extends TaskInput {
 
-    public TranslateJsTask(Dependency dep, BuildContext buildContext, BuildLog logger) {
+    public ClosurePassTask(Dependency dep, BuildContext buildContext, BuildLog logger) {
         super(dep, buildContext, logger);
     }
 
     @Override
     public OutputTypes getOutputTypes() {
-        return OutputTypes.TRANSLATED_JS;
+        return OutputTypes.CLOSURE_PASS;
     }
 
     @Override
     public void process() {
         TaskOutput transpiled = input(dependency, OutputTypes.TRANSPILED_JS);
 
-        TranslationsFileConfig tf = buildContext.getConfig().translationsFile();
-        if (tf == null) {
-            copyAllFiles(transpiled);
-            return;
-        }
-
         java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
-                tf, buildContext.getConfig().defines(),
+                buildContext.getConfig().translationsFile(), buildContext.getConfig().defines(),
                 buildContext.getProjectBaseDir(), buildContext.getAdditionalXtbSearchPaths(), logger);
         if (xtbFiles.isEmpty()) {
             copyAllFiles(transpiled);
@@ -59,9 +52,10 @@ public class TranslateJsTask extends TaskInput {
                     continue;
                 }
 
+                boolean isBundleJar = "BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel());
                 String content = Files.readString(fe.getAbsolutePath(), StandardCharsets.UTF_8);
-                if (content.contains("goog.getMsg")) {
-                    String translated = applyTranslations(content, fe.getSourcePath().toString(), xtbFiles);
+                if (isBundleJar) {
+                    String translated = runClosure(content, fe.getSourcePath().toString(), xtbFiles);
                     Files.writeString(targetPath, translated, StandardCharsets.UTF_8);
                 } else {
                     Files.copy(fe.getAbsolutePath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
@@ -72,7 +66,7 @@ public class TranslateJsTask extends TaskInput {
         }
     }
 
-    private String applyTranslations(String source, String name,
+    private String runClosure(String source, String name,
                                       java.util.List<File> xtbFiles) {
         CompilerOptions options = new CompilerOptions();
         CompilationLevel.WHITESPACE_ONLY.setOptionsForCompilationLevel(options);

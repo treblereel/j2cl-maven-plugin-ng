@@ -346,13 +346,11 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 }
             }
 
-            if (translationsFile != null) {
-                java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
-                        translationsFile, defines, this.project.getBasedir(),
-                        buildContext.getAdditionalXtbSearchPaths(), buildLog);
-                for (File xtbFile : xtbFiles) {
-                    project.addAdditionalSourcePath(xtbFile.toPath());
-                }
+            java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
+                    translationsFile, defines, this.project.getBasedir(),
+                    buildContext.getAdditionalXtbSearchPaths(), buildLog);
+            for (File xtbFile : xtbFiles) {
+                project.addAdditionalSourcePath(xtbFile.toPath());
             }
 
             process(project, buildContext, buildLog);

@@ -21,8 +21,6 @@ public class XtbResolver {
     public static void applyTranslations(CompilerOptions options, TranslationsFileConfig tf,
                                           Map<String, Object> defines, File projectBaseDir,
                                           List<Path> additionalSearchPaths, BuildLog log) {
-        if (tf == null) return;
-
         List<File> xtbFiles = resolveTranslationsFiles(tf, defines, projectBaseDir, additionalSearchPaths, log);
         if (xtbFiles.isEmpty()) return;
 
@@ -68,7 +66,7 @@ public class XtbResolver {
                                                        BuildLog log) {
         List<File> result = new ArrayList<>();
 
-        if (tf.getFile() != null && !tf.getFile().isEmpty()) {
+        if (tf != null && tf.getFile() != null && !tf.getFile().isEmpty()) {
             File f = new File(tf.getFile());
             if (!f.exists()) {
                 throw new RuntimeException("Translations file not found: " + f.getAbsolutePath());
@@ -76,16 +74,17 @@ public class XtbResolver {
             result.add(f);
         }
 
-        if (tf.isAuto()) {
-            Object locale = defines != null ? defines.get("goog.LOCALE") : null;
-            if (locale == null) {
-                if (result.isEmpty()) {
-                    log.warn("translationsFile auto=true but goog.LOCALE not set in defines");
-                }
-                return result;
+        Object locale = defines != null ? defines.get("goog.LOCALE") : null;
+        boolean explicitAuto = tf != null && tf.isAuto();
+        boolean implicitAuto = tf == null && locale != null;
+        if (explicitAuto || implicitAuto) {
+            List<File> autoFiles;
+            if (locale != null) {
+                autoFiles = findAllXtbByLocale(locale.toString(), projectBaseDir,
+                        additionalSearchPaths, log);
+            } else {
+                autoFiles = findAllXtb(projectBaseDir, additionalSearchPaths, log);
             }
-            List<File> autoFiles = findAllXtbByLocale(locale.toString(), projectBaseDir,
-                    additionalSearchPaths, log);
             for (File af : autoFiles) {
                 if (!result.contains(af)) {
                     result.add(af);
@@ -103,6 +102,27 @@ public class XtbResolver {
         return files.isEmpty() ? null : files.get(0);
     }
 
+    public static List<File> findAllXtb(File baseDir, List<Path> additionalSearchPaths, BuildLog log) {
+        List<Path> searchRoots = buildSearchRoots(baseDir, additionalSearchPaths);
+        List<File> found = new ArrayList<>();
+        for (Path root : searchRoots) {
+            if (!Files.exists(root)) continue;
+            try (Stream<Path> walk = Files.walk(root)) {
+                walk.filter(Files::isRegularFile)
+                        .filter(p -> p.toString().endsWith(".xtb"))
+                        .forEach(p -> {
+                            File file = p.toFile();
+                            if (!found.contains(file)) {
+                                found.add(file);
+                            }
+                        });
+            } catch (IOException e) {
+                log.warn("Failed to scan for XTB files in " + root + ": " + e.getMessage());
+            }
+        }
+        return found;
+    }
+
     public static List<File> findAllXtbByLocale(String locale, File baseDir,
                                                  List<Path> additionalSearchPaths, BuildLog log) {
         String normalizedLocale = locale.replace("-", "_");
@@ -111,14 +131,7 @@ public class XtbResolver {
                         + "|" + java.util.regex.Pattern.quote(normalizedLocale)
                         + ")[_\\-.]");
 
-        List<Path> searchRoots = new ArrayList<>();
-        searchRoots.add(baseDir.toPath());
-        searchRoots.add(baseDir.toPath().resolve("src/main/java"));
-        searchRoots.add(baseDir.toPath().resolve("src/main/resources"));
-        if (additionalSearchPaths != null) {
-            searchRoots.addAll(additionalSearchPaths);
-        }
-
+        List<Path> searchRoots = buildSearchRoots(baseDir, additionalSearchPaths);
         List<File> found = new ArrayList<>();
         for (Path root : searchRoots) {
             if (!Files.exists(root)) continue;
@@ -150,5 +163,16 @@ public class XtbResolver {
     public static File findXtbByLocale(String locale, File baseDir, BuildLog log) {
         List<File> files = findAllXtbByLocale(locale, baseDir, Collections.emptyList(), log);
         return files.isEmpty() ? null : files.get(0);
+    }
+
+    private static List<Path> buildSearchRoots(File baseDir, List<Path> additionalSearchPaths) {
+        List<Path> roots = new ArrayList<>();
+        roots.add(baseDir.toPath());
+        roots.add(baseDir.toPath().resolve("src/main/java"));
+        roots.add(baseDir.toPath().resolve("src/main/resources"));
+        if (additionalSearchPaths != null) {
+            roots.addAll(additionalSearchPaths);
+        }
+        return roots;
     }
 }
