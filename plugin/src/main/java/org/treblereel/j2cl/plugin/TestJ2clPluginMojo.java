@@ -234,10 +234,10 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 backend, testWasmEntryPoints, wasmJreJsZip
         );
 
-        BuildContext testBuildContext = new BuildContext(
+        try (BuildContext testBuildContext = new BuildContext(
                 project, buildConfig, artifactResolver,
                 new org.apache.maven.plugin.PluginParameterExpressionEvaluator(session, mojoExecution)
-        );
+        )) {
 
         if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
             testBuildContext.setIgnoreMavenAnnotationProcessors(true);
@@ -421,6 +421,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                     buildLog.error(String.format("Test %s failed", name)));
             throw new MojoFailureException("At least one test failed");
         }
+        } // try (testBuildContext)
     }
 
     private List<SourceFile> collectJsSources(Path outputDir, TestReactorDependency testDep,

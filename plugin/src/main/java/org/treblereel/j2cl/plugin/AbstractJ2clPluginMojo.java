@@ -323,40 +323,40 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 wasmJreJsZip
         );
 
-        BuildContext buildContext = new BuildContext(
+        try (BuildContext buildContext = new BuildContext(
                 project,
                 buildConfig,
                 artifactResolver,
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
-        );
+        )) {
+            if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+                buildContext.setIgnoreMavenAnnotationProcessors(true);
+            }
 
-        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-            buildContext.setIgnoreMavenAnnotationProcessors(true);
-        }
+            ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
+            TaskInput.clearCacheForDependency(project.key());
 
-        ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
-        TaskInput.clearCacheForDependency(project.key());
-
-        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-            java.nio.file.Path mainSource = java.nio.file.Paths.get(this.project.getBuild().getSourceDirectory());
-            for (String root : this.project.getCompileSourceRoots()) {
-                java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
-                if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
-                    project.addAdditionalSourceDirectory(rootPath);
+            if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+                java.nio.file.Path mainSource = java.nio.file.Paths.get(this.project.getBuild().getSourceDirectory());
+                for (String root : this.project.getCompileSourceRoots()) {
+                    java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
+                    if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
+                        project.addAdditionalSourceDirectory(rootPath);
+                    }
                 }
             }
-        }
 
-        if (translationsFile != null) {
-            java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
-                    translationsFile, defines, this.project.getBasedir(),
-                    buildContext.getAdditionalXtbSearchPaths(), buildLog);
-            for (File xtbFile : xtbFiles) {
-                project.addAdditionalSourcePath(xtbFile.toPath());
+            if (translationsFile != null) {
+                java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
+                        translationsFile, defines, this.project.getBasedir(),
+                        buildContext.getAdditionalXtbSearchPaths(), buildLog);
+                for (File xtbFile : xtbFiles) {
+                    project.addAdditionalSourcePath(xtbFile.toPath());
+                }
             }
-        }
 
-        process(project, buildContext, buildLog);
+            process(project, buildContext, buildLog);
+        }
     }
 
     protected File getFileWithMavenCoords(String coords) throws MojoExecutionException {

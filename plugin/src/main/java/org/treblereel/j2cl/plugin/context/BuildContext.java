@@ -13,7 +13,7 @@ import org.treblereel.j2cl.plugin.config.Config;
 import org.treblereel.j2cl.plugin.tools.APTProcessors;
 import org.treblereel.j2cl.plugin.tools.AptPath;
 
-public class BuildContext {
+public class BuildContext implements AutoCloseable {
 
   private final static String CACHE_DIRECTORY = "j2cl-plugin-cache";
 
@@ -70,7 +70,8 @@ public class BuildContext {
     return failed.get();
   }
 
-  public void shutdown() {
+  @Override
+  public void close() {
     executor.shutdown();
   }
 

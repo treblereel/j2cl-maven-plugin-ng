@@ -38,6 +38,7 @@ import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
 import org.treblereel.j2cl.plugin.task.TaskInput;
+import org.treblereel.j2cl.plugin.task.WasmFinalTask;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
@@ -82,20 +83,31 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 projectBuilder, defaultDependencyReplacement, buildLog
         );
 
+        boolean isWasm = "WASM".equalsIgnoreCase(backend);
+
         List<File> extraClasspath = Arrays.asList(
-                getFileWithMavenCoords(jreJar),
+                getFileWithMavenCoords(isWasm ? jreWasmJar : jreJar),
                 getFileWithMavenCoords(jsinteropAnnotationsJar),
                 getFileWithMavenCoords(internalAnnotationsJar),
                 getFileWithMavenCoords(jsinteropBaseJar),
                 getFileWithMavenCoords(jspecify)
         );
 
-        List<Artifact> extraJsZips = Arrays.asList(
-                getMavenArtifactWithCoords(bootstrapJsZip),
-                getMavenArtifactWithCoords(jreJsZip)
-        );
+        List<Artifact> extraJsZips;
+        if (isWasm) {
+            extraJsZips = List.of();
+        } else {
+            extraJsZips = Arrays.asList(
+                    getMavenArtifactWithCoords(bootstrapJsZip),
+                    getMavenArtifactWithCoords(jreJsZip)
+            );
+        }
 
-        File bootstrapClasspathFile = getFileWithMavenCoords(this.bootstrapClasspath);
+        File bootstrapClasspathFile = getFileWithMavenCoords(
+                isWasm ? this.bootstrapClasspathWasm : this.bootstrapClasspath);
+
+        File wasmJreJsZip = isWasm
+                ? getFileWithMavenCoords(this.jreWasmJsZip) : null;
 
         BuildConfig buildConfig = new BuildConfig(
                 extraClasspath, extraJsZips, bootstrapClasspathFile,
@@ -103,17 +115,35 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 resolveWatchCompilationLevel(),
                 defines, rewritePolyfills, translationsFile, watchEnableSourcemaps,
                 languageOut, true, env,
-                annotationProcessorsArgs
+                annotationProcessorsArgs,
+                List.of(),
+                backend, wasmEntryPoints, wasmJreJsZip
         );
 
-        BuildContext buildContext = new BuildContext(
+        try (BuildContext buildContext = new BuildContext(
                 project, buildConfig, artifactResolver,
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
-        );
+        )) {
+            if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+                buildContext.setIgnoreMavenAnnotationProcessors(true);
+            }
 
-        ReactorDependency reactorProject = new ReactorDependency(project, artifactResolver);
+            ReactorDependency reactorProject = new ReactorDependency(project, artifactResolver);
 
-        doWatch(reactorProject, buildContext, buildLog);
+            if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
+                java.nio.file.Path mainSource = java.nio.file.Paths.get(
+                        project.getBuild().getSourceDirectory());
+                for (String root : project.getCompileSourceRoots()) {
+                    java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
+                    if (!rootPath.equals(mainSource)
+                            && java.nio.file.Files.exists(rootPath)) {
+                        reactorProject.addAdditionalSourceDirectory(rootPath);
+                    }
+                }
+            }
+
+            doWatch(reactorProject, buildContext, buildLog);
+        }
     }
 
     private String resolveWatchCompilationLevel() {
@@ -124,7 +154,9 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     }
 
     private void runPipeline(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
-        if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
+        if ("WASM".equalsIgnoreCase(buildContext.getConfig().backend())) {
+            new WasmFinalTask(project, buildContext, buildLog).runTask().join();
+        } else if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
             new BundleJarTask(project, buildContext, buildLog).runTask().join();
         } else {
             new FinalTask(project, buildContext, buildLog).runTask().join();
