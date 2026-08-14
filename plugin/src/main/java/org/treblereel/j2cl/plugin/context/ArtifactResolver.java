@@ -67,6 +67,12 @@ public class ArtifactResolver {
             MavenProject dependencyProject = projectBuilder.build(artifact, req).getProject();
 
             return dependencyProject.getArtifacts().stream()
+                    .filter(a -> {
+                        String scope = a.getScope();
+                        return scope == null
+                                || org.apache.maven.artifact.Artifact.SCOPE_COMPILE.equals(scope)
+                                || org.apache.maven.artifact.Artifact.SCOPE_RUNTIME.equals(scope);
+                    })
                     .map(a -> {
                         Dependency dependency = new JarDependency(a, this);
                         String key = dependency.groupId() + ":" + dependency.artifactId();

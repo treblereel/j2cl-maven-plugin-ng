@@ -39,6 +39,7 @@
         <module>wasm-hello-world</module>
         <module>wasm-simple-test</module>
         <module>wasm-multi-module</module>
+        <module>re2j-project</module>
     </modules>
 
     <properties>
