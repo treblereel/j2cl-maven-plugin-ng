@@ -5,7 +5,7 @@
 
 # j2cl-maven-plugin
 
-A Maven plugin for transpiling Java code to JavaScript using [J2CL](https://github.com/nicka-kie/nicka-nicka-nicka) (Java to Closure Compiler) and optimizing it with [Google Closure Compiler](https://developers.google.com/closure/compiler).
+A Maven plugin for transpiling Java code to JavaScript or WebAssembly (WASM) using [J2CL](https://github.com/nicka-kie/nicka-nicka-nicka) (Java to Closure Compiler) and optimizing it with [Google Closure Compiler](https://developers.google.com/closure/compiler) or [Binaryen](https://github.com/WebAssembly/binaryen).
 
 ## Coordinates
 
