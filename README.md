@@ -12,7 +12,7 @@ A Maven plugin for transpiling Java code to JavaScript or WebAssembly (WASM) usi
 ```xml
 <groupId>org.treblereel.j2cl.plugin</groupId>
 <artifactId>j2cl-maven-plugin</artifactId>
-<version>1.0-SNAPSHOT</version>
+<version>0.24</version>
 ```
 
 ## Requirements
@@ -201,7 +201,7 @@ Tasks run in parallel on virtual threads (Java 21+). Results are cached — subs
         <plugin>
             <groupId>org.treblereel.j2cl.plugin</groupId>
             <artifactId>j2cl-maven-plugin</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>0.24</version>
             <executions>
                 <execution>
                     <id>compile</id>
@@ -221,7 +221,7 @@ Tasks run in parallel on virtual threads (Java 21+). Results are cached — subs
 <plugin>
     <groupId>org.treblereel.j2cl.plugin</groupId>
     <artifactId>j2cl-maven-plugin</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.24</version>
     <executions>
         <execution>
             <id>compile</id>
@@ -253,21 +253,21 @@ Tasks run in parallel on virtual threads (Java 21+). Results are cached — subs
         <version>2.1.0</version>
     </dependency>
     <dependency>
-        <groupId>org.kie.j2cl.tools</groupId>
+        <groupId>org.treblereel.j2cl</groupId>
         <artifactId>junit-annotations</artifactId>
-        <version>v20260527-1</version>
+        <version>v20260906-1</version>
         <scope>test</scope>
     </dependency>
     <dependency>
-        <groupId>org.kie.j2cl.tools</groupId>
+        <groupId>org.treblereel.j2cl</groupId>
         <artifactId>junit-emul</artifactId>
-        <version>v20260527-1</version>
+        <version>v20260906-1</version>
         <scope>test</scope>
     </dependency>
     <dependency>
-        <groupId>org.kie.j2cl.tools</groupId>
+        <groupId>org.treblereel.j2cl</groupId>
         <artifactId>gwttestcase-emul</artifactId>
-        <version>v20260527-1</version>
+        <version>v20260906-1</version>
         <scope>test</scope>
     </dependency>
 </dependencies>
@@ -277,7 +277,7 @@ Tasks run in parallel on virtual threads (Java 21+). Results are cached — subs
         <plugin>
             <groupId>org.treblereel.j2cl.plugin</groupId>
             <artifactId>j2cl-maven-plugin</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>0.24</version>
             <executions>
                 <execution>
                     <id>compile</id>
