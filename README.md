@@ -1,3 +1,8 @@
+[![GitHub license](https://img.shields.io/github/license/treblereel/j2cl-maven-plugin-ng)](https://github.com/treblereel/j2cl-maven-plugin-ng/blob/main/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/org.treblereel.j2cl.plugin/j2cl-maven-plugin)](https://central.sonatype.com/artifact/org.treblereel.j2cl.plugin/j2cl-maven-plugin)
+![Gitter](https://img.shields.io/gitter/room/vertispan/j2cl)
+[![Java CI with Maven](https://github.com/treblereel/j2cl-maven-plugin-ng/actions/workflows/maven.yml/badge.svg)](https://github.com/treblereel/j2cl-maven-plugin-ng/actions/workflows/maven.yml)
+
 # j2cl-maven-plugin
 
 A Maven plugin for transpiling Java code to JavaScript using [J2CL](https://github.com/nicka-kie/nicka-nicka-nicka) (Java to Closure Compiler) and optimizing it with [Google Closure Compiler](https://developers.google.com/closure/compiler).
