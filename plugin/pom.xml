@@ -10,7 +10,6 @@
         <version>0.24</version>
     </parent>
 
-    <groupId>org.treblereel.j2cl.plugin</groupId>
     <artifactId>j2cl-maven-plugin</artifactId>
     <version>0.24</version>
     <packaging>maven-plugin</packaging>
@@ -23,49 +22,60 @@
         <j2cl.version>v20260906-1</j2cl.version>
         <j2cl.base.version>v20260527-1</j2cl.base.version>
         <closure.compiler.unshaded.version>v20260811</closure.compiler.unshaded.version>
+
+        <maven.version>3.9.16</maven.version>
+        <maven-plugin-annotations.version>3.15.2</maven-plugin-annotations.version>
+        <maven-resolver-api.version>1.9.27</maven-resolver-api.version>
+        <turbine.version>0.14.0</turbine.version>
+        <plexus-utils.version>3.6.2</plexus-utils.version>
+        <protobuf.version>4.36.1</protobuf.version>
+        <junit-jupiter.version>5.14.4</junit-jupiter.version>
+        <selenium.version>4.48.0</selenium.version>
+        <templating-maven-plugin.version>3.1.0</templating-maven-plugin.version>
+        <protoc-jar-maven-plugin.version>3.11.4</protoc-jar-maven-plugin.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-core</artifactId>
-            <version>3.9.11</version>
+            <version>${maven.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
-            <version>3.9.11</version>
+            <version>${maven.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugin-tools</groupId>
             <artifactId>maven-plugin-annotations</artifactId>
-            <version>3.15.2</version>
+            <version>${maven-plugin-annotations.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
-            <version>3.9.11</version>
+            <version>${maven.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-artifact</artifactId>
-            <version>3.9.11</version>
+            <version>${maven.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.resolver</groupId>
             <artifactId>maven-resolver-api</artifactId>
-            <version>1.9.20</version>
+            <version>${maven-resolver-api.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.google.turbine</groupId>
             <artifactId>turbine</artifactId>
-            <version>0.11.0</version>
+            <version>${turbine.version}</version>
         </dependency>
         <dependency>
             <groupId>org.treblereel.j2cl</groupId>
@@ -138,12 +148,12 @@
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
-            <version>3.5.1</version>
+            <version>${plexus-utils.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>4.32.1</version>
+            <version>${protobuf.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.javascript</groupId>
@@ -160,29 +170,29 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.11.4</version>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-api</artifactId>
-            <version>4.44.0</version>
+            <version>${selenium.version}</version>
         </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-support</artifactId>
-            <version>4.44.0</version>
+            <version>${selenium.version}</version>
         </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-chrome-driver</artifactId>
-            <version>4.44.0</version>
+            <version>${selenium.version}</version>
         </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>htmlunit3-driver</artifactId>
-            <version>4.44.0</version>
+            <version>${selenium.version}</version>
         </dependency>
     </dependencies>
 
@@ -196,7 +206,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>templating-maven-plugin</artifactId>
-                <version>1.0.0</version>
+                <version>${templating-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>filter-src</id>
@@ -213,7 +223,7 @@
             <plugin>
                 <groupId>com.github.os72</groupId>
                 <artifactId>protoc-jar-maven-plugin</artifactId>
-                <version>3.11.4</version>
+                <version>${protoc-jar-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>generate-sources</phase>
@@ -221,7 +231,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-                            <protocArtifact>com.google.protobuf:protoc:4.32.1</protocArtifact>
+                            <protocArtifact>com.google.protobuf:protoc:${protobuf.version}</protocArtifact>
                             <inputDirectories>
                                 <include>src/main/proto</include>
                             </inputDirectories>
