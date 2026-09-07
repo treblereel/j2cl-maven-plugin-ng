@@ -10,6 +10,11 @@
     <packaging>pom</packaging>
     <name>Sample: Multi-Module</name>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
     <modules>
         <module>lib</module>
         <module>app</module>

@@ -13,6 +13,9 @@
     <artifactId>j2cl-maven-plugin</artifactId>
     <version>0.24</version>
     <packaging>maven-plugin</packaging>
+    <name>J2CL Maven Plugin</name>
+    <description>Maven plugin for transpiling Java to JavaScript/WASM using J2CL and Google Closure Compiler</description>
+    <url>https://github.com/treblereel/j2cl-maven-plugin-ng</url>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -242,4 +245,23 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${maven.central.publishing.plugin}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

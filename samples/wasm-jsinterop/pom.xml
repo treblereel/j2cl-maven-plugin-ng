@@ -10,6 +10,11 @@
     <name>Sample: WASM JsInterop</name>
     <description>Bidirectional Java/WASM and JavaScript interop demo</description>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.google.jsinterop</groupId>

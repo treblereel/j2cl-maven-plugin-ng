@@ -9,6 +9,11 @@
     <version>0.24</version>
     <name>Sample: Single Module</name>
 
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.google.jsinterop</groupId>

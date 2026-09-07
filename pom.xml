@@ -67,6 +67,9 @@
 
         <version.checkstyle>10.21.4</version.checkstyle>
 
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+
         <!-- Checkstyle: license header -->
         <checkstyle.header.extensions>java</checkstyle.header.extensions>
         <checkstyle.failOnViolation>true</checkstyle.failOnViolation>
@@ -268,15 +271,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>${maven.central.publishing.plugin}</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
