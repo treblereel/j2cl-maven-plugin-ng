@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>j2cl-plugin-tests</artifactId>
-        <version>0.24</version>
+        <version>0.24.1</version>
     </parent>
 
     <artifactId>dependency-replacements</artifactId>

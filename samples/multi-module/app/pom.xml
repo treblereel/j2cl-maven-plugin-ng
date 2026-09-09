@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.samples</groupId>
         <artifactId>multi-module-sample</artifactId>
-        <version>0.24</version>
+        <version>0.24.1</version>
     </parent>
 
     <artifactId>multi-module-sample-app</artifactId>
@@ -33,7 +33,7 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24</version>
+                <version>0.24.1</version>
                 <configuration>
                     <compilationLevel>BUNDLE_JAR</compilationLevel>
                 </configuration>

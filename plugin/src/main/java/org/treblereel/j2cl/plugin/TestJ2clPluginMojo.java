@@ -46,6 +46,8 @@ import com.google.javascript.jscomp.SourceFile;
 import com.google.javascript.rhino.StaticSourceFile;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.DefaultArtifact;
+import org.apache.maven.artifact.handler.DefaultArtifactHandler;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -67,6 +69,7 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.model.JarDependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.model.TestReactorDependency;
 import org.treblereel.j2cl.plugin.task.OutputTypes;
@@ -116,7 +119,10 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
     private static final PathMatcher NATIVE_JS = p -> p.getFileName().toString().endsWith(".native.js");
     private static final PathMatcher EXTERNS_JS = p -> p.getFileName().toString().endsWith(".externs.js");
     private static final Path META_INF = Paths.get("META-INF");
+    private static final Path META_INF_EXTERNS = META_INF.resolve("externs");
     private static final PathMatcher IN_META_INF = path -> path.startsWith(META_INF);
+    private static final PathMatcher EXTERNS = path -> path.startsWith(META_INF_EXTERNS)
+            || EXTERNS_JS.matches(path);
 
     private static final PathMatcher PLAIN_JS_SOURCES = path -> {
         if (IN_META_INF.matches(path)) return false;
@@ -149,10 +155,10 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         Map<String, String> failedTests = new HashMap<>();
 
         // --- Build artifact resolver (same as parent) ---
-        Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();
-        defaultDependencyReplacement.put("com.google.jsinterop:base", new org.apache.maven.artifact.DefaultArtifact(
+        Map<String, Artifact> defaultDependencyReplacement = new HashMap<>();
+        defaultDependencyReplacement.put("com.google.jsinterop:base", new DefaultArtifact(
                 "org.kie.j2cl.tools.jsinterop", "jsinterop-base", "1.1.1",
-                "compile", "jar", null, new org.apache.maven.artifact.handler.DefaultArtifactHandler()
+                "compile", "jar", null, new DefaultArtifactHandler()
         ));
         defaultDependencyReplacement.put("org.gwtproject:gwt-user", null);
         defaultDependencyReplacement.put("org.gwtproject:gwt-dev", null);
@@ -160,7 +166,6 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         defaultDependencyReplacement.put("com.google.gwt:gwt-user", null);
         defaultDependencyReplacement.put("com.google.gwt:gwt-dev", null);
         defaultDependencyReplacement.put("com.google.gwt:gwt-servlet", null);
-        defaultDependencyReplacement.put("org.kie.j2cl.tools:junit-emul", null);
 
         ArtifactResolver artifactResolver = new ArtifactResolver(
                 project, repoSystem, remoteRepos, repoSession, session,
@@ -173,6 +178,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         File junitAnnotationsJar = getFileWithMavenCoords(junitAnnotations);
         File junitEmulJar = getFileWithMavenCoords(junitEmul);
         File gwttestcaseEmulJar = getFileWithMavenCoords(gwttestcaseEmul);
+        Artifact junitEmulSources = getMavenArtifactWithCoords(sourcesCoordinates(junitEmul));
+        Artifact gwttestcaseEmulSources = getMavenArtifactWithCoords(sourcesCoordinates(gwttestcaseEmul));
 
         boolean isWasm = "WASM".equalsIgnoreCase(backend);
 
@@ -252,16 +259,20 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         ReactorDependency mainDep = new ReactorDependency(project, artifactResolver);
 
         if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-            java.nio.file.Path mainSource = java.nio.file.Paths.get(project.getBuild().getSourceDirectory());
+            Path mainSource = Paths.get(project.getBuild().getSourceDirectory());
             for (String root : project.getCompileSourceRoots()) {
-                java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
-                if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
+                Path rootPath = Paths.get(root);
+                if (!rootPath.equals(mainSource) && Files.exists(rootPath)) {
                     mainDep.addAdditionalSourceDirectory(rootPath);
                 }
             }
         }
 
         TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep);
+        // The emulation JARs are compiler classpath entries, but their Java sources must also be task dependencies
+        // so Closure and WASM receive the org.junit.Assert and junit.framework.TestCase implementations.
+        testDep.addDependency(new JarDependency(junitEmulSources, artifactResolver));
+        testDep.addDependency(new JarDependency(gwttestcaseEmulSources, artifactResolver));
 
         if (testDep.getSourcePaths().isEmpty()) {
             buildLog.info("No test sources found, skipping test execution");
@@ -522,6 +533,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
                 List<SourceFile> inputs = collectJsSources(outputDir, testDep, allDeps, tmpDir, buildConfig);
                 List<SourceFile> externs = loadExterns();
+                collectDependencyExterns(outputDir, testDep, allDeps, externs);
                 CompilerOptions options = createClosureOptions(testScriptFilename);
 
                 Compiler compiler = new Compiler();
@@ -681,6 +693,34 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
     }
 
+    private void collectDependencyExterns(Path outputDir, TestReactorDependency testDep,
+                                          List<Dependency> allDeps, List<SourceFile> externs) throws IOException {
+        collectExternsFromOutputDir(outputDir, testDep.key(), externs);
+        for (Dependency dependency : allDeps) {
+            collectExternsFromOutputDir(outputDir, dependency.key(), externs);
+        }
+    }
+
+    private void collectExternsFromOutputDir(Path outputDir, String dependencyKey,
+                                             List<SourceFile> externs) throws IOException {
+        Path dir = outputDir.resolve(dependencyKey).resolve("unzipped");
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.filter(Files::isRegularFile)
+                    .filter(path -> EXTERNS.matches(dir.relativize(path)))
+                    .forEach(path -> externs.add(SourceFile.fromFile(path.toString())));
+        }
+    }
+
+    private static String sourcesCoordinates(String coordinates) {
+        org.eclipse.aether.artifact.Artifact artifact =
+                new org.eclipse.aether.artifact.DefaultArtifact(coordinates);
+        return String.format("%s:%s:jar:sources:%s",
+                artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion());
+    }
+
     private CompilerOptions createClosureOptions(String scriptFilename) {
         CompilerOptions options = new CompilerOptions();
         options.setJ2clMinifierEnabled(true);
@@ -707,6 +747,10 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         } else {
             CompilationLevel.BUNDLE.setOptionsForCompilationLevel(options);
         }
+        // The J2CL JUnit runtime discovers adapter methods by their JavaScript names
+        // (test*, setUp, tearDown, ...). Preserve/export those names under ADVANCED,
+        // matching Closure's --export_test_functions behavior used by the old plugin.
+        options.setExportTestFunctions(true);
         options.setSkipNonTranspilationPasses(false);
         options.setClosurePass(true);
         options.setDependencyOptions(DependencyOptions.sortOnly());

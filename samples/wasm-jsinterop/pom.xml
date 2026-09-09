@@ -6,7 +6,7 @@
 
     <groupId>org.treblereel.j2cl.plugin.samples</groupId>
     <artifactId>wasm-jsinterop-sample</artifactId>
-    <version>0.24</version>
+    <version>0.24.1</version>
     <name>Sample: WASM JsInterop</name>
     <description>Bidirectional Java/WASM and JavaScript interop demo</description>
 
@@ -29,7 +29,7 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24</version>
+                <version>0.24.1</version>
                 <executions>
                     <execution>
                         <id>compile</id>

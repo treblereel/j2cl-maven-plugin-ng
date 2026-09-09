@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.maven.model.Resource;
 import org.apache.maven.project.MavenProject;
@@ -14,10 +15,15 @@ import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 public class TestReactorDependency extends ReactorDependency {
 
     private final ReactorDependency mainDependency;
+    private final List<Dependency> additionalDependencies = new ArrayList<>();
 
     public TestReactorDependency(MavenProject project, ArtifactResolver artifactResolver, ReactorDependency mainDependency) {
         super(project, artifactResolver);
         this.mainDependency = mainDependency;
+    }
+
+    public void addDependency(Dependency dependency) {
+        additionalDependencies.add(dependency);
     }
 
     @Override
@@ -57,13 +63,10 @@ public class TestReactorDependency extends ReactorDependency {
         project.getDependencyArtifacts()
                 .stream()
                 .filter(artifact -> "test".equals(artifact.getScope()))
-                .map(artifact -> {
-                    if (resolver.isInReactor(artifact)) {
-                        return (Dependency) new ReactorDependency(resolver.getMavenProject(artifact), resolver);
-                    }
-                    return (Dependency) new JarDependency(artifact, resolver);
-                })
+                .map(resolver::toDependency)
+                .filter(Objects::nonNull)
                 .forEach(deps::add);
+        deps.addAll(additionalDependencies);
         return deps;
     }
 

@@ -135,10 +135,15 @@ public class ClosureTask extends TaskInput {
 
         List<SourceFile> externs = new ArrayList<>();
         try {
-            List<SourceFile> sourceFile = fromZipInput(getExternsFromClassPath(), Charset.defaultCharset());
-            externs.addAll(sourceFile);
+            externs.addAll(fromZipInput(getExternsFromClassPath(), Charset.defaultCharset()));
+            for (FileEntry extern : Stream.concat(
+                    selfJsOutPutUnzipped.filter(EXTERNS).files().stream(),
+                    depsUnzipped.filter(EXTERNS).files().stream()
+            ).toList()) {
+                externs.add(SourceFile.fromFile(extern.getAbsolutePath().toString()));
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Unable to read externs from classpath", e);
+            throw new RuntimeException("Unable to read Closure externs", e);
         }
 
         List<SourceFile> inputs = new ArrayList<>();

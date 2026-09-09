@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>translation-tests</artifactId>
-        <version>0.24</version>
+        <version>0.24.1</version>
     </parent>
 
     <artifactId>translationsfile-multi-bundle</artifactId>
@@ -49,7 +49,7 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24</version>
+                <version>0.24.1</version>
                 <executions>
                     <execution>
                         <id>compile</id>

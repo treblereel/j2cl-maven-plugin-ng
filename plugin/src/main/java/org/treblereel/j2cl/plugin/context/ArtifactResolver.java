@@ -43,6 +43,7 @@ public class ArtifactResolver {
     private final ProjectDependencyGraph dependencyGraph;
     private final ProjectBuilder projectBuilder;
     private final MavenSession mavenSession;
+    private final DependencyMediation dependencyMediation;
 
     public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
                             MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement, BuildLog logger) {
@@ -56,6 +57,7 @@ public class ArtifactResolver {
         this.defaultDependencyReplacement = defaultDependencyReplacement;
         this.dependencyGraph = session.getProjectDependencyGraph();
         this.logger = logger;
+        this.dependencyMediation = new DependencyMediation(project.getArtifacts());
     }
 
     public Collection<Dependency> getDependencies(org.apache.maven.artifact.Artifact artifact) {
@@ -73,24 +75,31 @@ public class ArtifactResolver {
                                 || org.apache.maven.artifact.Artifact.SCOPE_COMPILE.equals(scope)
                                 || org.apache.maven.artifact.Artifact.SCOPE_RUNTIME.equals(scope);
                     })
-                    .map(a -> {
-                        Dependency dependency = new JarDependency(a, this);
-                        String key = dependency.groupId() + ":" + dependency.artifactId();
-                        if (defaultDependencyReplacement.containsKey(key)) {
-                            org.apache.maven.artifact.Artifact replacement = defaultDependencyReplacement.get(key);
-                            if (replacement == null) {
-                                return null;
-                            }
-                            var resolved = getDependency(replacement);
-                            return new JarDependency(resolved, this);
-                        }
-                        return new JarDependency(a, this);
-                    })
+                    // Building a dependency POM in isolation loses dependency management, exclusions, and
+                    // conflict resolution from the root project. Re-apply Maven's already-resolved graph before
+                    // recursively processing it, otherwise different branches can contribute different versions
+                    // of the same Closure module.
+                    .map(a -> dependencyMediation.mediate(artifact, a))
+                    .filter(Objects::nonNull)
+                    .map(this::toDependency)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toSet());
         } catch (ProjectBuildingException e) {
             throw new RuntimeException("Failed to build project for artifact " + artifact, e);
         }
+    }
+
+    /** Converts a Maven artifact while consistently applying configured replacements. */
+    public Dependency toDependency(org.apache.maven.artifact.Artifact artifact) {
+        String key = artifact.getGroupId() + ":" + artifact.getArtifactId();
+        if (defaultDependencyReplacement.containsKey(key)) {
+            org.apache.maven.artifact.Artifact replacement = defaultDependencyReplacement.get(key);
+            return replacement == null ? null : new JarDependency(getDependency(replacement), this);
+        }
+        if (isInReactor(artifact)) {
+            return new ReactorDependency(getMavenProject(artifact), this);
+        }
+        return new JarDependency(artifact, this);
     }
 
     public org.apache.maven.artifact.Artifact getDependency(org.apache.maven.artifact.Artifact mavenArtifact) {

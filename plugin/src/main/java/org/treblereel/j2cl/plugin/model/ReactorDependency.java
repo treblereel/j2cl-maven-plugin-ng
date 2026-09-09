@@ -44,12 +44,8 @@ public class ReactorDependency implements Dependency {
                 .stream()
                 .filter(artifact -> !artifact.getScope().equals("provided"))
                 .filter(artifact -> !artifact.getScope().equals("test"))
-                .map(artifact -> {
-                    if (artifactResolver.isInReactor(artifact)) {
-                        return new ReactorDependency(artifactResolver.getMavenProject(artifact), artifactResolver);
-                    }
-                    return new JarDependency(artifact, artifactResolver);
-                })
+                .map(artifactResolver::toDependency)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
     }
 
