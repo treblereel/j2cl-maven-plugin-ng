@@ -74,6 +74,7 @@ import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.task.TaskInputFactory;
 import org.treblereel.j2cl.plugin.tools.AptPath;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
+import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.tools.ServiceFileReader;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
@@ -133,6 +134,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             getLog().info("Tests are skipped (maven.test.skip=true)");
             return;
         }
+        JavacInternals.openToPlugin();
 
         TaskInput.clearCache();
 
