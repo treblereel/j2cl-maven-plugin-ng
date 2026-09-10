@@ -39,6 +39,7 @@ import org.treblereel.j2cl.plugin.task.BundleJarTask;
 import org.treblereel.j2cl.plugin.task.FinalTask;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.task.WasmFinalTask;
+import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
@@ -65,6 +66,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        JavacInternals.openToPlugin();
         BuildLog buildLog = new MavenBuildLog(this);
 
         Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();

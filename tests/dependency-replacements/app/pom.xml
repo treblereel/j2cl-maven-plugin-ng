@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>dependency-replacements</artifactId>
-        <version>0.24</version>
+        <version>0.24.1</version>
     </parent>
 
     <artifactId>dependency-replacements-app</artifactId>
@@ -29,7 +29,7 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24</version>
+                <version>0.24.1</version>
                 <executions>
                     <execution>
                         <id>compile</id>

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>annotation-processor-in-reactor-args</artifactId>
-        <version>0.24</version>
+        <version>0.24.1</version>
     </parent>
 
     <artifactId>annotation-processor-in-reactor-args-processor</artifactId>

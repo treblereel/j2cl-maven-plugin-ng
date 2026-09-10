@@ -34,6 +34,7 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.TaskInput;
+import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.xbt.TranslationsFileConfig;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
@@ -248,6 +249,7 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        JavacInternals.openToPlugin();
         BuildLog buildLog = new MavenBuildLog(this);
 
         Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();
