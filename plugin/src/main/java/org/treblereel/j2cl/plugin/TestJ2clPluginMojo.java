@@ -385,10 +385,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 Path htmlPath = outputJsPath.resolveSibling(
                         outputJsPath.getFileName().toString().replace(".js", ".html"));
 
-                if (!Files.exists(htmlPath)) {
-                    buildLog.warn("HTML file not found for test: " + testClass);
-                    continue;
-                }
+                requireTestArtifact(htmlPath, testClass);
+                requireTestArtifact(outputJsPath, testClass);
 
                 Path relativePath = Paths.get(webappDirectory).relativize(htmlPath);
                 String url = "http://localhost:" + port + "/" + relativePath.toString().replace(File.separator, "/");
@@ -439,6 +437,13 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             throw new MojoFailureException("At least one test failed");
         }
         } // try (testBuildContext)
+    }
+
+    static void requireTestArtifact(Path file, String testClass) throws MojoExecutionException {
+        if (!Files.isRegularFile(file) || !Files.isReadable(file)) {
+            throw new MojoExecutionException("Required artifact for discovered test " + testClass
+                    + " is missing or unreadable: " + file);
+        }
     }
 
     private List<SourceFile> collectJsSources(Path outputDir, TestReactorDependency testDep,
@@ -520,10 +525,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.info("Compiling test: " + testClass);
 
             Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
-            if (!Files.exists(testSuiteFile)) {
-                buildLog.warn("Test suite file not found: " + testSuiteFile);
-                continue;
-            }
+            requireTestArtifact(testSuiteFile, testClass);
 
             try {
                 Path tmpDir = Files.createTempDirectory("j2cl-test-" + testClass);
@@ -599,10 +601,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.info("Compiling WASM test harness: " + testClass);
 
             Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
-            if (!Files.exists(testSuiteFile)) {
-                buildLog.warn("Test suite file not found: " + testSuiteFile);
-                continue;
-            }
+            requireTestArtifact(testSuiteFile, testClass);
 
             try {
                 Path tmpDir = Files.createTempDirectory("j2cl-wasm-test-" + testClass);

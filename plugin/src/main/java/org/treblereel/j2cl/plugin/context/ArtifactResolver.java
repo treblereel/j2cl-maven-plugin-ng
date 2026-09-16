@@ -137,6 +137,10 @@ public class ArtifactResolver {
         }
     }
 
+    public List<MavenProject> getUpstreamProjects() {
+        return dependencyGraph.getUpstreamProjects(project, true);
+    }
+
     public List<ReactorDependency> getReactorDependencies(MavenProject project) {
         return dependencyGraph.getUpstreamProjects(project, false)
                 .stream()

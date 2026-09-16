@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -184,82 +183,98 @@ public abstract class TaskInput {
 
     private void markFailed() {
         Path dir = getOutputDirectory();
-        dir.toFile().mkdirs();
-        Path failedMarker = dir.resolve(".failed");
         try {
-            Files.createFile(failedMarker);
-        } catch (java.nio.file.FileAlreadyExistsException ignored) {
+            Files.createDirectories(dir);
+            Path failedMarker = dir.resolve(".failed");
+            if (!Files.exists(failedMarker)) {
+                Files.createFile(failedMarker);
+            }
+            BuildStatus status = readStatus();
+            if (status != null) {
+                // Preserve successful upstream stages when only this stage's configuration changes.
+                status.getOutputTypes().remove(getOutputTypes());
+                status.getConfigurationHashes().remove(getOutputTypes());
+                // These alternative pipelines publish into the same webapp directory.
+                if (getOutputTypes() == OutputTypes.FINAL_TASK || getOutputTypes() == OutputTypes.BUNDLED_JS_APP) {
+                    status.getOutputTypes().remove(OutputTypes.FINAL_TASK);
+                    status.getOutputTypes().remove(OutputTypes.BUNDLED_JS_APP);
+                    status.getConfigurationHashes().remove(OutputTypes.FINAL_TASK);
+                    status.getConfigurationHashes().remove(OutputTypes.BUNDLED_JS_APP);
+                }
+                writeStatus(status);
+            } else {
+                Files.deleteIfExists(dir.resolve(".success"));
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Unable to create failed marker file: " + failedMarker, e);
-        }
-        Path successMarker = dir.resolve(".success");
-        try {
-            Files.deleteIfExists(successMarker);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to delete success marker file: " + successMarker, e);
+            throw new RuntimeException("Unable to invalidate task " + key(), e);
         }
     }
 
     protected void markSuccess() {
-        Path failedMarker = getOutputDirectory().resolve(".failed");
         try {
-            Files.deleteIfExists(failedMarker);
+            BuildStatus status = readStatus();
+            String sourceHash = dependency.isSourceMapped()
+                    ? Hashing.hash(((ReactorDependency) dependency).getHashPaths()) : null;
+            if (status == null || !java.util.Objects.equals(sourceHash, status.getHash())) {
+                status = new BuildStatus();
+                status.setHash(sourceHash);
+                status.setOutputTypes(new HashSet<>());
+                status.setConfigurationHashes(new java.util.EnumMap<>(OutputTypes.class));
+            }
+            status.getOutputTypes().add(getOutputTypes());
+            status.getConfigurationHashes().put(getOutputTypes(), buildContext.configurationHash(getOutputTypes()));
+            writeStatus(status);
+            Files.deleteIfExists(getOutputDirectory().resolve(".failed"));
         } catch (IOException e) {
-            throw new RuntimeException("Unable to delete failed marker file: " + failedMarker, e);
+            throw new RuntimeException("Unable to write success marker for " + key(), e);
         }
-        Path successMarker = getOutputDirectory().resolve(".success");
-        boolean created = false;
-        if (!Files.exists(successMarker)) {
-            try {
-                Files.createFile(successMarker);
-                created = true;
-            } catch (java.nio.file.FileAlreadyExistsException ignored) {
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to create success marker file: " + successMarker, e);
-            }
-        }
-        if (dependency.isSourceMapped()) {
-            try {
-                if (created) {
-                    String hash = Hashing.hash(((ReactorDependency) dependency).getHashPaths());
-                    BuildStatus status = new BuildStatus();
-                    Set<OutputTypes> outputTypesSet = new HashSet<>();
-                    outputTypesSet.add(getOutputTypes());
-                    status.setHash(hash);
-                    status.setOutputTypes(outputTypesSet);
-                    String json = gson.toJson(status);
-                    Files.writeString(successMarker, json);
-                } else {
-                    String json = Files.readString(successMarker, StandardCharsets.UTF_8);
-                    BuildStatus status = gson.fromJson(json, BuildStatus.class);
-                    status.getOutputTypes().add(getOutputTypes());
-                    String updatedJson = gson.toJson(status);
-                    Files.writeString(successMarker, updatedJson, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to read/write success marker file: " + successMarker, e);
-            }
-        }
+    }
 
+    private BuildStatus readStatus() throws IOException {
+        Path marker = getOutputDirectory().resolve(".success");
+        if (!Files.isRegularFile(marker)) {
+            return null;
+        }
+        try {
+            BuildStatus status = gson.fromJson(Files.readString(marker, StandardCharsets.UTF_8), BuildStatus.class);
+            // Legacy markers (including empty JAR markers) are rebuilt once.
+            return status == null || status.getOutputTypes() == null || status.getConfigurationHashes() == null
+                    ? null : status;
+        } catch (com.google.gson.JsonParseException e) {
+            return null;
+        }
+    }
+
+    private void writeStatus(BuildStatus status) throws IOException {
+        Path marker = getOutputDirectory().resolve(".success");
+        Path temporary = Files.createTempFile(getOutputDirectory(), ".success-", ".tmp");
+        try {
+            Files.writeString(temporary, gson.toJson(status), StandardCharsets.UTF_8);
+            try {
+                Files.move(temporary, marker, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(temporary, marker, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 
     protected boolean hasSuccessMarker() {
-        Path successMarker = getOutputDirectory().resolve(".success");
-        if (Files.exists(successMarker)) {
-            if (dependency.isSourceMapped()) {
-                try {
-                    String json = Files.readString(successMarker);
-                    BuildStatus status = gson.fromJson(json, BuildStatus.class);
-                    String currentHash = Hashing.hash(((ReactorDependency) dependency).getHashPaths());
-                    return status.getHash().equals(currentHash) && status.getOutputTypes().contains(getOutputTypes());
-                } catch (IOException e) {
-                    throw new RuntimeException("Unable to read success marker file: " + successMarker, e);
-                }
-
+        try {
+            BuildStatus status = readStatus();
+            if (status == null || !status.getOutputTypes().contains(getOutputTypes())
+                    || !buildContext.configurationHash(getOutputTypes())
+                            .equals(status.getConfigurationHashes().get(getOutputTypes()))) {
+                return false;
             }
-            return true;
+            return !dependency.isSourceMapped()
+                    || java.util.Objects.equals(status.getHash(),
+                            Hashing.hash(((ReactorDependency) dependency).getHashPaths()));
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to read success marker for " + key(), e);
         }
-        return false;
     }
 
     protected List<Dependency> getFlattenDependencies() {
