@@ -67,6 +67,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         JavacInternals.openToPlugin();
+        TaskInput.clearCache();
         BuildLog buildLog = new MavenBuildLog(this);
 
         Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();

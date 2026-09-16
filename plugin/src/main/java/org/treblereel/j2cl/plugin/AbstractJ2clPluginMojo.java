@@ -251,6 +251,8 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         JavacInternals.openToPlugin();
+        // Futures belong to this execution; on-disk results are validated against its configuration.
+        TaskInput.clearCache();
         BuildLog buildLog = new MavenBuildLog(this);
 
         Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement = new HashMap<>();
@@ -337,7 +339,6 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
             }
 
             ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
-            TaskInput.clearCacheForDependency(project.key());
 
             if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
                 java.nio.file.Path mainSource = java.nio.file.Paths.get(this.project.getBuild().getSourceDirectory());

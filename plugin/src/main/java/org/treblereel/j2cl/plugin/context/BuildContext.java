@@ -3,6 +3,9 @@ package org.treblereel.j2cl.plugin.context;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,6 +13,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 import org.apache.maven.project.MavenProject;
 import org.treblereel.j2cl.plugin.config.Config;
+import org.treblereel.j2cl.plugin.config.ConfigurationFingerprint;
+import org.treblereel.j2cl.plugin.task.OutputTypes;
 import org.treblereel.j2cl.plugin.tools.APTProcessors;
 import org.treblereel.j2cl.plugin.tools.AptPath;
 
@@ -22,6 +27,31 @@ public class BuildContext implements AutoCloseable {
   private final MavenProject project;
 
   private final AtomicBoolean failed = new AtomicBoolean(false);
+  private final Map<OutputTypes, String> configurationHashes = new ConcurrentHashMap<>();
+
+  public String configurationHash(OutputTypes type) {
+    return configurationHashes.computeIfAbsent(type, key -> ConfigurationFingerprint.hash(
+            config, key, compilerConfiguration()));
+  }
+
+  private String compilerConfiguration() {
+    Map<String, String> settings = new TreeMap<>();
+    settings.put("ignoreMavenAnnotationProcessors", Boolean.toString(ignoreMavenAnnotationProcessors));
+    settings.put("watchMode", Boolean.toString(watchMode));
+    List<MavenProject> projects = new ArrayList<>();
+    projects.add(project);
+    if (artifactResolver != null) {
+      projects.addAll(artifactResolver.getUpstreamProjects());
+    }
+    for (MavenProject current : projects) {
+      var plugin = current.getPlugin("org.apache.maven.plugins:maven-compiler-plugin");
+      if (plugin != null && !ignoreMavenAnnotationProcessors) {
+        settings.put(current.getId(), String.valueOf(plugin.getConfiguration()) + plugin.getExecutions().stream()
+                .map(execution -> execution.getId() + ":" + execution.getConfiguration()).toList());
+      }
+    }
+    return new com.google.gson.Gson().toJson(settings);
+  }
 
   private final PluginParameterExpressionEvaluator evaluator;
 
