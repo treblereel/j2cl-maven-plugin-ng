@@ -7,9 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.Reader;
-import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -345,31 +343,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         HttpServer server = null;
         WebDriver driver = null;
         try {
-            server = HttpServer.create(new InetSocketAddress(0), 0);
-            Path webRoot = Paths.get(webappDirectory);
-            server.createContext("/", exchange -> {
-                Path file = webRoot.resolve(exchange.getRequestURI().getPath().substring(1));
-                if (Files.exists(file) && !Files.isDirectory(file)) {
-                    byte[] bytes = Files.readAllBytes(file);
-                    String name = file.getFileName().toString();
-                    String contentType;
-                    if (name.endsWith(".html")) contentType = "text/html";
-                    else if (name.endsWith(".js")) contentType = "application/javascript";
-                    else if (name.endsWith(".wasm")) contentType = "application/wasm";
-                    else {
-                        contentType = Files.probeContentType(file);
-                        if (contentType == null) contentType = "application/octet-stream";
-                    }
-                    exchange.getResponseHeaders().set("Content-Type", contentType);
-                    exchange.sendResponseHeaders(200, bytes.length);
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(bytes);
-                    }
-                } else {
-                    exchange.sendResponseHeaders(404, -1);
-                    exchange.close();
-                }
-            });
+            server = TestHttpServer.create(Paths.get(webappDirectory));
             server.start();
             int port = server.getAddress().getPort();
 
@@ -389,7 +363,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 requireTestArtifact(outputJsPath, testClass);
 
                 Path relativePath = Paths.get(webappDirectory).relativize(htmlPath);
-                String url = "http://localhost:" + port + "/" + relativePath.toString().replace(File.separator, "/");
+                String url = "http://127.0.0.1:" + port + "/" + relativePath.toString().replace(File.separator, "/");
 
                 buildLog.info("Test started: " + testClass);
                 buildLog.info("Fetching " + url);
