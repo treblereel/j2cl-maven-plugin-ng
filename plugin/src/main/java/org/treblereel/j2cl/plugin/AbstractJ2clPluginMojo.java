@@ -30,6 +30,7 @@ import org.eclipse.aether.resolution.ArtifactResult;
 import org.treblereel.j2cl.plugin.config.BuildConfig;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.context.ReactorCacheInvalidation;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
@@ -355,6 +356,8 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 project.addAdditionalSourcePath(xtbFile.toPath());
             }
 
+            ReactorCacheInvalidation.invalidate(
+                    project, buildContext.getOutputDirectory());
             process(project, buildContext, buildLog);
         }
     }
