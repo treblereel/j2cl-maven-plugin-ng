@@ -66,6 +66,7 @@ import org.openqa.selenium.support.ui.FluentWait;
 import org.treblereel.j2cl.plugin.config.BuildConfig;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.context.ReactorCacheInvalidation;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
@@ -279,6 +280,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             return;
         }
 
+        ReactorCacheInvalidation.invalidate(
+                testDep, testBuildContext.getOutputDirectory());
         try {
             if (isWasm) {
                 TaskInputFactory.create(testDep, testBuildContext, OutputTypes.WASM_OPTIMIZED, buildLog)
