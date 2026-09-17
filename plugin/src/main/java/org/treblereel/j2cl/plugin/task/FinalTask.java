@@ -2,7 +2,6 @@ package org.treblereel.j2cl.plugin.task;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -17,6 +16,7 @@ import java.util.zip.ZipFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class FinalTask extends TaskInput {
 
@@ -91,11 +91,7 @@ public class FinalTask extends TaskInput {
                 String name = entry.getName();
                 if (!name.startsWith(prefix)) continue;
                 String relative = name.substring(prefix.length());
-                Path targetPath = sourceMapDir.resolve(relative);
-                Files.createDirectories(targetPath.getParent());
-                try (InputStream is = zf.getInputStream(entry)) {
-                    Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
-                }
+                FileUtils.extractZipEntry(zf, entry, sourceMapDir, relative);
             }
         }
     }
