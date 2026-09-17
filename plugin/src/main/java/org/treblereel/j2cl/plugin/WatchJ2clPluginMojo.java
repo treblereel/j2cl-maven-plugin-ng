@@ -240,7 +240,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
     }
 
-    private Set<String> rebuildAndMonitor(ReactorDependency project, BuildContext buildContext,
+    Set<String> rebuildAndMonitor(ReactorDependency project, BuildContext buildContext,
                                           BuildLog buildLog, Set<String> changedFiles,
                                           WatchService watcher, Map<WatchKey, Path> keyToDir)
             throws InterruptedException {
@@ -261,7 +261,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
         buildThread.join();
 
-        // Drain any final stale events
+        // Drain events queued at the end of the build as well.
         Thread.sleep(200);
         WatchKey staleKey;
         while ((staleKey = watcher.poll()) != null) {
@@ -273,12 +273,12 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
             }
         }
 
-        // Filter out files that were already in the current build
-        pendingChanges.removeAll(changedFiles);
+        // These are new events, even when their paths also triggered the current build.
+        // Dropping matching paths would lose edits made after the compiler read the file.
         return pendingChanges;
     }
 
-    private void rebuild(ReactorDependency project, BuildContext buildContext,
+    void rebuild(ReactorDependency project, BuildContext buildContext,
                          BuildLog buildLog, Set<String> changedFiles) {
         buildLog.info("Recompiling...");
         long start = System.currentTimeMillis();
