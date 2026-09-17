@@ -267,7 +267,9 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             }
         }
 
-        TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep);
+        // IGNORE_MAVEN consumes the outputs of Maven's processors instead of running them again.
+        TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode));
         // The emulation JARs are compiler classpath entries, but their Java sources must also be task dependencies
         // so Closure and WASM receive the org.junit.Assert and junit.framework.TestCase implementations.
         testDep.addDependency(new JarDependency(junitEmulSources, artifactResolver));

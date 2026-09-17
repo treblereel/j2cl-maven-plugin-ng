@@ -15,11 +15,18 @@ import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 public class TestReactorDependency extends ReactorDependency {
 
     private final ReactorDependency mainDependency;
+    private final boolean includeGeneratedSources;
     private final List<Dependency> additionalDependencies = new ArrayList<>();
 
     public TestReactorDependency(MavenProject project, ArtifactResolver artifactResolver, ReactorDependency mainDependency) {
+        this(project, artifactResolver, mainDependency, false);
+    }
+
+    public TestReactorDependency(MavenProject project, ArtifactResolver artifactResolver,
+                                 ReactorDependency mainDependency, boolean includeGeneratedSources) {
         super(project, artifactResolver);
         this.mainDependency = mainDependency;
+        this.includeGeneratedSources = includeGeneratedSources;
     }
 
     public void addDependency(Dependency dependency) {
@@ -32,7 +39,8 @@ public class TestReactorDependency extends ReactorDependency {
         List<Path> result = new ArrayList<>();
 
         for (String testRoot : project.getTestCompileSourceRoots()) {
-            if (testRoot.contains("generated-test-sources") || testRoot.contains("generated-sources")) {
+            if (!includeGeneratedSources
+                    && (testRoot.contains("generated-test-sources") || testRoot.contains("generated-sources"))) {
                 continue;
             }
             Path path = Paths.get(testRoot);
