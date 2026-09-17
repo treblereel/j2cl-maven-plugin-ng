@@ -20,7 +20,10 @@ import org.apache.maven.project.ProjectBuildingRequest;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
+import org.eclipse.aether.artifact.ArtifactType;
+import org.eclipse.aether.artifact.ArtifactTypeRegistry;
 import org.eclipse.aether.artifact.DefaultArtifact;
+import org.eclipse.aether.artifact.DefaultArtifactType;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
@@ -277,14 +280,36 @@ public class ArtifactResolver {
      * @throws MojoExecutionException
      */
     public File getJarWithMavenCoords(String coords) throws MojoExecutionException {
+        return resolveFile(new DefaultArtifact(coords));
+    }
+
+    public File getJarWithMavenCoords(String groupId, String artifactId, String version,
+                                      String type, String classifier) throws MojoExecutionException {
+        return resolveFile(typedArtifact(groupId, artifactId, version, type, classifier,
+                repoSession.getArtifactTypeRegistry()));
+    }
+
+    static Artifact typedArtifact(String groupId, String artifactId, String version,
+                                  String type, String classifier,
+                                  ArtifactTypeRegistry registry) {
+        String effectiveType = type == null || type.isBlank() ? "jar" : type;
+        ArtifactType artifactType = registry.get(effectiveType);
+        if (artifactType == null) {
+            artifactType = new DefaultArtifactType(effectiveType);
+        }
+        String effectiveClassifier = classifier == null || classifier.isBlank() ? null : classifier;
+        return new DefaultArtifact(groupId, artifactId, effectiveClassifier, null, version, artifactType);
+    }
+
+    private File resolveFile(Artifact artifact) throws MojoExecutionException {
         ArtifactRequest request = new ArtifactRequest()
                 .setRepositories(remoteRepos)
-                .setArtifact(new DefaultArtifact(coords));
+                .setArtifact(artifact);
 
         try {
             return repositorySystem.resolveArtifact(repoSession, request).getArtifact().getFile();
         } catch (ArtifactResolutionException e) {
-            throw new MojoExecutionException("Failed to find artifact " + coords, e);
+            throw new MojoExecutionException("Failed to find artifact " + artifact, e);
         }
     }
 
