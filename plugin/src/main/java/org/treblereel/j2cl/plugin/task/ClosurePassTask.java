@@ -41,6 +41,10 @@ public class ClosurePassTask extends TaskInput {
             return;
         }
 
+        for (File f : xtbFiles) {
+            logger.info("Using translations file: " + f.getAbsolutePath());
+        }
+
         for (FileEntry fe : transpiled.files()) {
             Path targetPath = outputPath().resolve(fe.getSourcePath());
             try {

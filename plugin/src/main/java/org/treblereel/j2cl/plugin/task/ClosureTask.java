@@ -40,6 +40,7 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
+import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public class ClosureTask extends TaskInput {
 
@@ -55,7 +56,6 @@ public class ClosureTask extends TaskInput {
     private static final Path PUBLIC = Paths.get("public");
     private static final PathMatcher JS_SOURCES = withSuffix(".js");
 
-    private static final PathMatcher XTB = withSuffix(".xtb");
     private static final PathMatcher NATIVE_JS_SOURCES = withSuffix(".native.js");
     private static final PathMatcher EXTERNS_SOURCES = withSuffix(".externs.js");
 
@@ -64,9 +64,6 @@ public class ClosureTask extends TaskInput {
     private static final PathMatcher IN_META_INF_RESOURCES = path -> path.startsWith(META_INF_RESOURCES);
 
     private static final PathMatcher IN_PUBLIC = path -> StreamSupport.stream(path.spliterator(), false).anyMatch(PUBLIC::equals);
-
-
-    private static final List<String> GOOG_LIBRARRY = List.of("lib/base.js", "lib/goog.js", "lib/reflect.js");
 
     /**
      * JS files that closure should use as type information
@@ -221,7 +218,7 @@ public class ClosureTask extends TaskInput {
         options.setSkipNonTranspilationPasses(false);
         options.setClosurePass(true);
         options.setDependencyOptions(DependencyOptions.sortOnly());
-        org.treblereel.j2cl.plugin.xbt.XtbResolver.applyTranslations(options,
+        XtbResolver.applyTranslations(options,
                 buildContext.getConfig().translationsFile(), buildContext.getConfig().defines(),
                 buildContext.getProjectBaseDir(), buildContext.getAdditionalXtbSearchPaths(), logger);
 
@@ -291,7 +288,8 @@ public class ClosureTask extends TaskInput {
                         mapLine,
                         StandardCharsets.UTF_8,
                         StandardOpenOption.APPEND
-                );            }
+                );
+            }
         } catch (IOException e) {
             throw new RuntimeException("Unable to write output file: " + outputPath(), e);
         }
@@ -379,6 +377,7 @@ public class ClosureTask extends TaskInput {
                     + ". Valid values: ADVANCED_OPTIMIZATIONS, SIMPLE_OPTIMIZATIONS, WHITESPACE_ONLY, BUNDLE_JAR");
         }
         level.setOptionsForCompilationLevel(options);
+        XtbResolver.applyDefaultMessageBundle(options, level);
         logger.info("Using compilation level: " + level);
     }
 

@@ -722,6 +722,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         CompilationLevel level = CompilationLevel.fromString(compilationLevel);
         if (level != null) {
             level.setOptionsForCompilationLevel(options);
+            XtbResolver.applyDefaultMessageBundle(options, level);
         } else {
             CompilationLevel.BUNDLE.setOptionsForCompilationLevel(options);
         }
