@@ -101,8 +101,30 @@ public class ReactorDependency implements Dependency {
             }
         }
 
+        if (artifactResolver != null && artifactResolver.isIncludeCompileSourceRoots()) {
+            for (String root : project.getCompileSourceRoots()) {
+                Path path = Paths.get(root);
+                if (Files.exists(path) && !result.contains(path)) {
+                    result.add(path);
+                }
+            }
+        }
+
         result.addAll(additionalSourceDirectories);
 
+        return result;
+    }
+
+    public List<Path> getWatchSourcePaths() {
+        List<Path> result = new ArrayList<>(getSourcePaths());
+        if (artifactResolver != null && artifactResolver.isIncludeCompileSourceRoots()) {
+            for (String root : project.getCompileSourceRoots()) {
+                Path path = Paths.get(root);
+                if (!result.contains(path)) {
+                    result.add(path);
+                }
+            }
+        }
         return result;
     }
 
