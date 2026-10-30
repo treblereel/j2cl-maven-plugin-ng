@@ -27,6 +27,7 @@
         <module>static-resources</module>
         <module>annotation-processor-in-reactor</module>
         <module>annotation-processor-in-reactor-args</module>
+        <module>ignore-maven-reactor-sources</module>
         <module>dependency-replacements</module>
         <module>elemental2-project</module>
         <module>hello-world-gwt-super-source</module>

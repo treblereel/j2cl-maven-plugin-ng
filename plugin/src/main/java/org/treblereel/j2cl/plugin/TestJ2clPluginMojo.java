@@ -168,7 +168,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         ArtifactResolver artifactResolver = new ArtifactResolver(
                 project, repoSystem, remoteRepos, repoSession, session,
-                projectBuilder, defaultDependencyReplacement, buildLog
+                projectBuilder, defaultDependencyReplacement, buildLog,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)
         );
 
         // --- Assemble test classpath (includes junit-processor, junit-runtime, junit-annotations) ---
@@ -256,16 +257,6 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         buildLog.info("Phase 1: Compiling test sources and discovering tests...");
 
         ReactorDependency mainDep = new ReactorDependency(project, artifactResolver);
-
-        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-            Path mainSource = Paths.get(project.getBuild().getSourceDirectory());
-            for (String root : project.getCompileSourceRoots()) {
-                Path rootPath = Paths.get(root);
-                if (!rootPath.equals(mainSource) && Files.exists(rootPath)) {
-                    mainDep.addAdditionalSourceDirectory(rootPath);
-                }
-            }
-        }
 
         TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep);
         // The emulation JARs are compiler classpath entries, but their Java sources must also be task dependencies
