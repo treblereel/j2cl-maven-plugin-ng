@@ -138,7 +138,7 @@ Sources
   └─> WasmFinalTask       — assemble output (.wasm, imports.js, public/ resources)
 ```
 
-Tasks run in parallel on virtual threads (Java 21+). Results are cached — subsequent builds skip tasks that have a `.success` marker.
+Tasks run in parallel on virtual threads (Java 21+). Each dependency's `.success` marker records completed stages and their configuration fingerprints. Cached stages are reused only when their inputs and relevant settings match. Changes to reactor sources invalidate dependent modules; changes to Closure settings rebuild the JavaScript output while retaining compatible Java transpilation results. Markers from older plugin versions without configuration fingerprints are rebuilt automatically on first use.
 
 ---
 

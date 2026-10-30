@@ -20,7 +20,10 @@ import org.apache.maven.project.ProjectBuildingRequest;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
+import org.eclipse.aether.artifact.ArtifactType;
+import org.eclipse.aether.artifact.ArtifactTypeRegistry;
 import org.eclipse.aether.artifact.DefaultArtifact;
+import org.eclipse.aether.artifact.DefaultArtifactType;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
@@ -44,9 +47,22 @@ public class ArtifactResolver {
     private final ProjectBuilder projectBuilder;
     private final MavenSession mavenSession;
     private final DependencyMediation dependencyMediation;
+    private final boolean includeCompileSourceRoots;
+
+    public boolean isIncludeCompileSourceRoots() {
+        return includeCompileSourceRoots;
+    }
 
     public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
                             MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement, BuildLog logger) {
+        this(project, repoSystem, remoteRepos, repoSession, session, projectBuilder,
+                defaultDependencyReplacement, logger, false);
+    }
+
+    public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
+                            MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement,
+                            BuildLog logger, boolean includeCompileSourceRoots) {
+        this.includeCompileSourceRoots = includeCompileSourceRoots;
         this.project = project;
         this.repositorySystem = repoSystem;
         this.remoteRepos = remoteRepos;
@@ -135,6 +151,10 @@ public class ArtifactResolver {
         } catch (Exception e) {
             throw new RuntimeException("Failed to resolve " + mavenArtifact, e);
         }
+    }
+
+    public List<MavenProject> getUpstreamProjects() {
+        return dependencyGraph.getUpstreamProjects(project, true);
     }
 
     public List<ReactorDependency> getReactorDependencies(MavenProject project) {
@@ -273,14 +293,36 @@ public class ArtifactResolver {
      * @throws MojoExecutionException
      */
     public File getJarWithMavenCoords(String coords) throws MojoExecutionException {
+        return resolveFile(new DefaultArtifact(coords));
+    }
+
+    public File getJarWithMavenCoords(String groupId, String artifactId, String version,
+                                      String type, String classifier) throws MojoExecutionException {
+        return resolveFile(typedArtifact(groupId, artifactId, version, type, classifier,
+                repoSession.getArtifactTypeRegistry()));
+    }
+
+    static Artifact typedArtifact(String groupId, String artifactId, String version,
+                                  String type, String classifier,
+                                  ArtifactTypeRegistry registry) {
+        String effectiveType = type == null || type.isBlank() ? "jar" : type;
+        ArtifactType artifactType = registry.get(effectiveType);
+        if (artifactType == null) {
+            artifactType = new DefaultArtifactType(effectiveType);
+        }
+        String effectiveClassifier = classifier == null || classifier.isBlank() ? null : classifier;
+        return new DefaultArtifact(groupId, artifactId, effectiveClassifier, null, version, artifactType);
+    }
+
+    private File resolveFile(Artifact artifact) throws MojoExecutionException {
         ArtifactRequest request = new ArtifactRequest()
                 .setRepositories(remoteRepos)
-                .setArtifact(new DefaultArtifact(coords));
+                .setArtifact(artifact);
 
         try {
             return repositorySystem.resolveArtifact(repoSession, request).getArtifact().getFile();
         } catch (ArtifactResolutionException e) {
-            throw new MojoExecutionException("Failed to find artifact " + coords, e);
+            throw new MojoExecutionException("Failed to find artifact " + artifact, e);
         }
     }
 

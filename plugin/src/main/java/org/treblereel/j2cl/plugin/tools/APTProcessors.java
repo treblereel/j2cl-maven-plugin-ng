@@ -37,10 +37,8 @@ public class APTProcessors {
       String c = evalStr(evaluator, childValue(path, "classifier"));
       String t = evalStr(evaluator, childValue(path, "type"));
 
-      String coords = g + ":" + a + ":" + v;
-
       try {
-        File jar = artifactResolver.getJarWithMavenCoords(coords);
+        File jar = artifactResolver.getJarWithMavenCoords(g, a, v, t, c);
         result.add(new AptPath(jar, new ArrayList<>(ServiceFileReader.readProcessors(jar.toPath()))));
       } catch (MojoExecutionException | IOException e) {
         throw new RuntimeException(e);

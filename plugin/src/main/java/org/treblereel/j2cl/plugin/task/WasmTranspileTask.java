@@ -3,7 +3,6 @@ package org.treblereel.j2cl.plugin.task;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -19,6 +18,7 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.tools.J2CLModuleParser;
 import org.treblereel.j2cl.plugin.tools.J2cl;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class WasmTranspileTask extends TaskInput {
 
@@ -130,9 +130,7 @@ public class WasmTranspileTask extends TaskInput {
                 while (entries.hasMoreElements()) {
                     ZipEntry entry = entries.nextElement();
                     if (!entry.isDirectory() && entry.getName().endsWith(".java")) {
-                        Path target = extractDir.resolve(entry.getName());
-                        Files.createDirectories(target.getParent());
-                        Files.copy(zf.getInputStream(entry), target, StandardCopyOption.REPLACE_EXISTING);
+                        FileUtils.extractZipEntry(zf, entry, extractDir, entry.getName());
                     }
                 }
             }
@@ -150,6 +148,8 @@ public class WasmTranspileTask extends TaskInput {
             }
 
             return result;
+        } catch (FileUtils.UnsafeArchiveEntryException e) {
+            throw new IllegalStateException("Unsafe sources archive for " + dependency.key(), e);
         } catch (Exception e) {
             logger.debug("No -sources.jar available for " + dependency.key());
             return List.of();
