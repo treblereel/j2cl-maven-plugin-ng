@@ -84,7 +84,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         ArtifactResolver artifactResolver = new ArtifactResolver(
                 project, repoSystem, remoteRepos, repoSession, session,
-                projectBuilder, defaultDependencyReplacement, buildLog
+                projectBuilder, defaultDependencyReplacement, buildLog,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)
         );
 
         boolean isWasm = "WASM".equalsIgnoreCase(backend);
@@ -129,6 +130,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 new PluginParameterExpressionEvaluator(session, mojoExecution)
         )) {
             buildContext.setWatchMode(true);
+            buildContext.setIgnoreMavenAnnotationProcessors(
+                    "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode));
 
             ReactorDependency reactorProject = new ReactorDependency(project, artifactResolver);
 
@@ -151,7 +154,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         return compilationLevel;
     }
 
-    private void runPipeline(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
+    void runPipeline(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         if ("WASM".equalsIgnoreCase(buildContext.getConfig().backend())) {
             new WasmFinalTask(project, buildContext, buildLog).runTask().join();
         } else if ("BUNDLE_JAR".equalsIgnoreCase(buildContext.getConfig().compilationLevel())) {
@@ -161,7 +164,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         }
     }
 
-    private void doWatch(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
+    void doWatch(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         buildLog.info("Running initial compilation...");
         try {
             runPipeline(project, buildContext, buildLog);
@@ -170,7 +173,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.error("Initial compilation failed: " + e.getMessage());
         }
 
-        List<Path> sourcePaths = new ArrayList<>(project.getSourcePaths());
+        List<Path> sourcePaths = new ArrayList<>(project.getWatchSourcePaths());
         collectReactorSourcePaths(project, sourcePaths, new HashSet<>());
         if (sourcePaths.isEmpty()) {
             buildLog.warn("No source directories to watch");
@@ -179,10 +182,8 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
             Map<WatchKey, Path> keyToDir = new HashMap<>();
-            for (Path sourceRoot : sourcePaths) {
-                registerRecursive(watcher, sourceRoot, keyToDir);
-                buildLog.info("Watching: " + sourceRoot);
-            }
+            registerReactorSources(project, watcher, keyToDir, new HashSet<>());
+            sourcePaths.forEach(root -> buildLog.info("Watching: " + root));
 
             buildLog.info("Watching for changes... (press Ctrl+C to stop)");
 
@@ -195,14 +196,14 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 }
 
                 Set<String> changedFiles = new LinkedHashSet<>();
-                drainEvents(key, dir, changedFiles, watcher, keyToDir);
+                drainEvents(key, dir, changedFiles, watcher, keyToDir, sourcePaths);
 
                 Thread.sleep(200);
                 WatchKey extraKey;
                 while ((extraKey = watcher.poll()) != null) {
                     Path extraDir = keyToDir.get(extraKey);
                     if (extraDir != null) {
-                        drainEvents(extraKey, extraDir, changedFiles, watcher, keyToDir);
+                        drainEvents(extraKey, extraDir, changedFiles, watcher, keyToDir, sourcePaths);
                     } else {
                         extraKey.cancel();
                     }
@@ -215,12 +216,12 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 logChangedFiles(buildLog, changedFiles);
 
                 Set<String> pendingChanges = rebuildAndMonitor(
-                        project, buildContext, buildLog, changedFiles, watcher, keyToDir);
+                        project, buildContext, buildLog, changedFiles, watcher, keyToDir, sourcePaths);
 
                 while (!pendingChanges.isEmpty()) {
                     logChangedFiles(buildLog, pendingChanges);
                     pendingChanges = rebuildAndMonitor(
-                            project, buildContext, buildLog, pendingChanges, watcher, keyToDir);
+                            project, buildContext, buildLog, pendingChanges, watcher, keyToDir, sourcePaths);
                 }
             }
         } catch (InterruptedException e) {
@@ -242,7 +243,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
     Set<String> rebuildAndMonitor(ReactorDependency project, BuildContext buildContext,
                                           BuildLog buildLog, Set<String> changedFiles,
-                                          WatchService watcher, Map<WatchKey, Path> keyToDir)
+                                          WatchService watcher, Map<WatchKey, Path> keyToDir, List<Path> sourcePaths)
             throws InterruptedException {
         Thread buildThread = Thread.ofVirtual().name("j2cl-rebuild").start(() ->
                 rebuild(project, buildContext, buildLog, changedFiles));
@@ -253,7 +254,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
             if (pendingKey != null) {
                 Path pendingDir = keyToDir.get(pendingKey);
                 if (pendingDir != null) {
-                    drainEvents(pendingKey, pendingDir, pendingChanges, watcher, keyToDir);
+                    drainEvents(pendingKey, pendingDir, pendingChanges, watcher, keyToDir, sourcePaths);
                 } else {
                     pendingKey.cancel();
                 }
@@ -267,7 +268,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         while ((staleKey = watcher.poll()) != null) {
             Path staleDir = keyToDir.get(staleKey);
             if (staleDir != null) {
-                drainEvents(staleKey, staleDir, pendingChanges, watcher, keyToDir);
+                drainEvents(staleKey, staleDir, pendingChanges, watcher, keyToDir, sourcePaths);
             } else {
                 staleKey.cancel();
             }
@@ -308,9 +309,10 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     private void collectChangedModules(ReactorDependency dep, Set<String> changedFiles,
                                        Set<String> result, Set<String> visited) {
         if (!visited.add(dep.key())) return;
-        for (Path sourcePath : dep.getSourcePaths()) {
-            String sourceDir = sourcePath.toString();
-            if (changedFiles.stream().anyMatch(f -> f.startsWith(sourceDir))) {
+        for (Path sourcePath : dep.getWatchSourcePaths()) {
+            Path sourceDir = sourcePath.toAbsolutePath().normalize();
+            if (changedFiles.stream().map(Path::of).map(p -> p.toAbsolutePath().normalize())
+                    .anyMatch(p -> p.startsWith(sourceDir) || sourceDir.startsWith(p))) {
                 result.add(dep.key());
                 break;
             }
@@ -377,8 +379,34 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     private void collectReactorSourcePaths(ReactorDependency dep, List<Path> paths, Set<String> visited) {
         for (Dependency child : dep.getDependencies()) {
             if (child instanceof ReactorDependency reactorChild && visited.add(reactorChild.key())) {
-                paths.addAll(reactorChild.getSourcePaths());
+                paths.addAll(reactorChild.getWatchSourcePaths());
                 collectReactorSourcePaths(reactorChild, paths, visited);
+            }
+        }
+    }
+
+    private void registerReactorSources(ReactorDependency dep, WatchService watcher,
+                                        Map<WatchKey, Path> keyToDir, Set<String> visited) throws IOException {
+        if (!visited.add(dep.key())) return;
+        Path base = dep.getMavenProject().getBasedir().toPath().toAbsolutePath().normalize();
+        for (Path source : dep.getWatchSourcePaths()) {
+            Path root = source.toAbsolutePath().normalize();
+            if (Files.isDirectory(root)) {
+                registerRecursive(watcher, root, keyToDir);
+            }
+            // Watch ancestors so Maven can delete and recreate a generated source tree.
+            for (Path parent = root.getParent();
+                 parent != null && (!root.startsWith(base) || parent.startsWith(base));
+                 parent = parent.getParent()) {
+                if (Files.isDirectory(parent)) {
+                    keyToDir.put(parent.register(watcher, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE), parent);
+                    if (!root.startsWith(base) || parent.equals(base)) break;
+                }
+            }
+        }
+        for (Dependency child : dep.getDependencies()) {
+            if (child instanceof ReactorDependency reactorChild) {
+                registerReactorSources(reactorChild, watcher, keyToDir, visited);
             }
         }
     }
@@ -395,19 +423,35 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     }
 
     private void drainEvents(WatchKey key, Path dir, Set<String> changedFiles,
-                             WatchService watcher, Map<WatchKey, Path> keyToDir) {
+                             WatchService watcher, Map<WatchKey, Path> keyToDir, List<Path> sourcePaths) {
         for (WatchEvent<?> event : key.pollEvents()) {
             WatchEvent.Kind<?> kind = event.kind();
             if (kind == OVERFLOW) continue;
 
             @SuppressWarnings("unchecked")
             Path name = ((WatchEvent<Path>) event).context();
-            Path child = dir.resolve(name);
+            Path child = dir.resolve(name).toAbsolutePath().normalize();
+            if (sourcePaths.stream().map(p -> p.toAbsolutePath().normalize())
+                    .noneMatch(root -> child.startsWith(root)
+                            || (kind != ENTRY_MODIFY && root.startsWith(child)))) continue;
             changedFiles.add(child.toString());
 
             if (kind == ENTRY_CREATE && Files.isDirectory(child)) {
                 try {
-                    registerRecursive(watcher, child, keyToDir);
+                    for (Path source : sourcePaths) {
+                        Path root = source.toAbsolutePath().normalize();
+                        if (child.startsWith(root)) {
+                            registerRecursive(watcher, child, keyToDir);
+                            break;
+                        } else if (root.startsWith(child)) {
+                            for (Path parent = root; parent.startsWith(child); parent = parent.getParent()) {
+                                if (Files.isDirectory(parent)) {
+                                    keyToDir.put(parent.register(watcher, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE), parent);
+                                }
+                            }
+                            if (Files.isDirectory(root)) registerRecursive(watcher, root, keyToDir);
+                        }
+                    }
                 } catch (IOException ignored) {}
             }
         }

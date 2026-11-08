@@ -47,9 +47,22 @@ public class ArtifactResolver {
     private final ProjectBuilder projectBuilder;
     private final MavenSession mavenSession;
     private final DependencyMediation dependencyMediation;
+    private final boolean includeCompileSourceRoots;
+
+    public boolean isIncludeCompileSourceRoots() {
+        return includeCompileSourceRoots;
+    }
 
     public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
                             MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement, BuildLog logger) {
+        this(project, repoSystem, remoteRepos, repoSession, session, projectBuilder,
+                defaultDependencyReplacement, logger, false);
+    }
+
+    public ArtifactResolver(MavenProject project, RepositorySystem repoSystem, List<RemoteRepository> remoteRepos, RepositorySystemSession repoSession,
+                            MavenSession session, ProjectBuilder projectBuilder, Map<String, org.apache.maven.artifact.Artifact> defaultDependencyReplacement,
+                            BuildLog logger, boolean includeCompileSourceRoots) {
+        this.includeCompileSourceRoots = includeCompileSourceRoots;
         this.project = project;
         this.repositorySystem = repoSystem;
         this.remoteRepos = remoteRepos;

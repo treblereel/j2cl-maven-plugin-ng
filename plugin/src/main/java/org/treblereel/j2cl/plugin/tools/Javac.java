@@ -37,7 +37,7 @@ public class Javac {
         javacOptions.add("--release");
         javacOptions.add("21");
 
-        if (generatedSourcesDir == null) {
+        if (generatedSourcesDir == null || processorNames.isEmpty()) {
             javacOptions.add("-proc:none");
         } else if (!processorNames.isEmpty()) {
             javacOptions.add("-processor");

@@ -144,7 +144,7 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
      * Controls how annotation processors are discovered for Turbine compilation.
      * <ul>
      *     <li>{@code MAVEN} (default) - reads annotationProcessorPaths from maven-compiler-plugin</li>
-     *     <li>{@code IGNORE_MAVEN} - ignores maven-compiler-plugin config; only uses provided-scope processors</li>
+     *     <li>{@code IGNORE_MAVEN} - uses Maven-generated sources and only runs explicitly configured extra processors</li>
      * </ul>
      */
     @Parameter(defaultValue = "MAVEN")
@@ -280,7 +280,8 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
                 session,
                 projectBuilder,
                 defaultDependencyReplacement,
-                buildLog
+                buildLog,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)
         );
 
         boolean isWasm = "WASM".equalsIgnoreCase(backend);
@@ -339,16 +340,6 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
             }
 
             ReactorDependency project = new ReactorDependency(this.project, artifactResolver);
-
-            if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-                java.nio.file.Path mainSource = java.nio.file.Paths.get(this.project.getBuild().getSourceDirectory());
-                for (String root : this.project.getCompileSourceRoots()) {
-                    java.nio.file.Path rootPath = java.nio.file.Paths.get(root);
-                    if (!rootPath.equals(mainSource) && java.nio.file.Files.exists(rootPath)) {
-                        project.addAdditionalSourceDirectory(rootPath);
-                    }
-                }
-            }
 
             java.util.List<File> xtbFiles = XtbResolver.resolveTranslationsFiles(
                     translationsFile, defines, this.project.getBasedir(),

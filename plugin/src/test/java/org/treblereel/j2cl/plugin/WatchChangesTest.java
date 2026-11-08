@@ -93,7 +93,7 @@ class WatchChangesTest {
         };
         try (watcher) {
             return mojo.rebuildAndMonitor(null, null, null, Set.of(source.resolve("A.java").toString()),
-                    watcher, directories).stream().map(path -> path.replace('\\', '/'))
+                    watcher, directories, List.of(source)).stream().map(path -> Path.of("").toAbsolutePath().normalize().relativize(Path.of(path)).toString()).map(path -> path.replace('\\', '/'))
                     .collect(java.util.stream.Collectors.toSet());
         } finally {
             finish.countDown();

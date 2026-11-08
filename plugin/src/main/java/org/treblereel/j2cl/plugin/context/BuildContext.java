@@ -84,6 +84,10 @@ public class BuildContext implements AutoCloseable {
     return APTProcessors.getAPTProcessorPaths(project, artifactResolver, evaluator);
   }
 
+  public boolean isIgnoreMavenAnnotationProcessors() {
+    return ignoreMavenAnnotationProcessors;
+  }
+
   public void setIgnoreMavenAnnotationProcessors(boolean ignore) {
     this.ignoreMavenAnnotationProcessors = ignore;
   }

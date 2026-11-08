@@ -69,7 +69,7 @@ public class ByteCodeTask extends TaskInput {
         List<String> annotationProcessorJars = new ArrayList<>();
         List<String> annotationProcessorNames = new ArrayList<>();
 
-        if (dependency.isSourceMapped()) {
+        if (dependency.isSourceMapped() && !buildContext.isIgnoreMavenAnnotationProcessors()) {
             MavenProject project = ((ReactorDependency)dependency).getMavenProject();
             List<AptPath> aptPaths = buildContext.getAPTProcessorPaths(project);
             for (AptPath aptPath : aptPaths) {
