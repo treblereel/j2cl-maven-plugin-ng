@@ -19,10 +19,12 @@ import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.DefaultMavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Build;
+import org.apache.maven.model.Resource;
 import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.DefaultRepositorySystemSession;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
@@ -37,15 +39,24 @@ class WatchGeneratedSourcesTest {
     @TempDir
     Path directory;
 
-    @Test
-    void watchesGeneratedRootCreationEditsDeletionAndRecreationWithoutWatchingCacheOutputs() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void watchesGeneratedRootCreationEditsDeletionAndRecreationWithoutWatchingCacheOutputs(boolean resource) throws Exception {
         MavenProject app = project("app");
         MavenProject lib = project("lib");
         MavenProject independent = project("independent");
         app.setDependencyArtifacts(Set.of(artifact(lib), artifact(independent)));
         Path generated = Path.of(lib.getBuild().getDirectory(), "generated-sources/annotations");
-        lib.addCompileSourceRoot(generated.toString());
-        Path source = generated.resolve("Generated.java");
+        if (resource) {
+            Resource root = new Resource();
+            root.setDirectory(generated.toString());
+            lib.addResource(root);
+        } else {
+            lib.addCompileSourceRoot(generated.toString());
+        }
+        Path filters = Files.writeString(lib.getBasedir().toPath().resolve("filters.properties"), "before");
+        lib.getBuild().addFilter(filters.toString());
+        Path source = generated.resolve(resource ? "template.html" : "Generated.java");
         MavenSession session = new MavenSession(null, new DefaultRepositorySystemSession(),
                 new DefaultMavenExecutionRequest(), new DefaultMavenExecutionResult());
         session.setAllProjects(List.of(app, lib, independent));
@@ -54,12 +65,16 @@ class WatchGeneratedSourcesTest {
         ReactorDependency child = new ReactorDependency(lib, resolver);
         ReactorDependency other = new ReactorDependency(independent, resolver);
         CountDownLatch ready = new CountDownLatch(1);
+        CountDownLatch restart = new CountDownLatch(1);
         LinkedBlockingQueue<String> builds = new LinkedBlockingQueue<>();
         AtomicReference<Throwable> failure = new AtomicReference<>();
         BuildLog log = (BuildLog) Proxy.newProxyInstance(BuildLog.class.getClassLoader(),
                 new Class<?>[]{BuildLog.class}, (proxy, method, args) -> {
                     if (method.getName().equals("info") && args[0].toString().startsWith("Watching for changes")) {
                         ready.countDown();
+                    }
+                    if (method.getName().equals("warn") && args[0].toString().startsWith("Maven POM changed")) {
+                        restart.countDown();
                     }
                     return null;
                 });
@@ -82,7 +97,7 @@ class WatchGeneratedSourcesTest {
                         writeMarker(appMarker);
                         writeMarker(libMarker);
                         String contents = Files.isRegularFile(source) ? Files.readString(source) : "missing";
-                        if (!initial) builds.add(contents);
+                        if (!initial) builds.add(contents + "|" + Files.readString(filters));
                         initial = false;
                     } catch (Throwable e) {
                         failure.set(e);
@@ -102,18 +117,22 @@ class WatchGeneratedSourcesTest {
                 assertNull(builds.poll(1500, TimeUnit.MILLISECONDS), "Cache output must not trigger a rebuild");
                 Files.createDirectories(generated);
                 Files.writeString(source, "created");
-                awaitBuild(builds, "created", failure);
+                awaitBuild(builds, "created|before", failure);
                 Files.writeString(source, "edited");
-                awaitBuild(builds, "edited", failure);
+                awaitBuild(builds, "edited|before", failure);
+                Files.writeString(filters, "after");
+                awaitBuild(builds, "edited|after", failure);
                 Files.delete(source);
                 Files.delete(generated);
                 Files.delete(generated.getParent());
                 Files.delete(Path.of(lib.getBuild().getDirectory(), "cache-output.txt"));
                 Files.delete(Path.of(lib.getBuild().getDirectory()));
-                awaitBuild(builds, "missing", failure);
+                awaitBuild(builds, "missing|after", failure);
                 Files.createDirectories(generated);
                 Files.writeString(source, "recreated");
-                awaitBuild(builds, "recreated", failure);
+                awaitBuild(builds, "recreated|after", failure);
+                Files.writeString(lib.getFile().toPath(), "changed model");
+                assertTrue(restart.await(10, TimeUnit.SECONDS), "POM changes must request model reload");
                 assertNull(failure.get());
             } finally {
                 watching.interrupt();

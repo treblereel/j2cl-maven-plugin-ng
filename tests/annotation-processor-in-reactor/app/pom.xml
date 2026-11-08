@@ -46,7 +46,19 @@
         </dependency>
     </dependencies>
 
+    <properties>
+        <fixture.message>filtered main resource</fixture.message>
+    </properties>
+
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes><include>app-*.txt</include></includes>
+                <excludes><exclude>app-excluded.txt</exclude></excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

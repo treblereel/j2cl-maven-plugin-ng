@@ -25,7 +25,7 @@ public class TurbineCodeTask extends ByteCodeTask {
                              List<String> annotationProcessorJars,
                              List<String> annotationProcessorNames,
                              List<String> javacOpts, File output) {
-        if (buildContext.isWatchMode() && !annotationProcessorNames.isEmpty()) {
+        if (buildContext.isWatchMode() && !annotationProcessorNames.isEmpty() && !sources.isEmpty()) {
             super.doCompile(sources, moduleDependencies, annotationProcessorJars,
                     annotationProcessorNames, javacOpts, output);
         } else {

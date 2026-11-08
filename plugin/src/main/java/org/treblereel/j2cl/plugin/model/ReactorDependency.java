@@ -14,6 +14,8 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.model.Resource;
 import org.apache.maven.project.MavenProject;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
+import org.treblereel.j2cl.plugin.tools.Hashing;
+import org.treblereel.j2cl.plugin.tools.MavenResourceInputs;
 
 public class ReactorDependency implements Dependency {
 
@@ -46,7 +48,7 @@ public class ReactorDependency implements Dependency {
                 .filter(artifact -> !artifact.getScope().equals("test"))
                 .map(artifactResolver::toDependency)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     @Override
@@ -115,23 +117,77 @@ public class ReactorDependency implements Dependency {
         return result;
     }
 
+    public List<Artifact> getResourceArtifacts() {
+        return project.getArtifacts().stream()
+                .filter(a -> this instanceof TestReactorDependency || !"test".equals(a.getScope()))
+                .toList();
+    }
+
+    public List<MavenProject> getResourceProjects() {
+        List<MavenProject> projects = new ArrayList<>();
+        projects.add(project);
+        if (artifactResolver != null) {
+            getResourceArtifacts().stream().filter(this::isReactorResource)
+                    .map(artifactResolver::getMavenProject).filter(p -> !projects.contains(p)).forEach(projects::add);
+        }
+        return projects;
+    }
+
+    private boolean isReactorResource(Artifact artifact) {
+        return artifactResolver != null && artifactResolver.isInReactor(artifact)
+                && !artifact.hasClassifier() && "jar".equals(artifact.getType());
+    }
+
     public List<Path> getWatchSourcePaths() {
         List<Path> result = new ArrayList<>(getSourcePaths());
         if (artifactResolver != null && artifactResolver.isIncludeCompileSourceRoots()) {
-            for (String root : project.getCompileSourceRoots()) {
-                Path path = Paths.get(root);
-                if (!result.contains(path)) {
-                    result.add(path);
-                }
+            project.getCompileSourceRoots().stream().map(Paths::get).forEach(result::add);
+        }
+        for (MavenProject current : getResourceProjects()) {
+            current.getResources().stream().map(r -> Path.of(r.getDirectory())).forEach(result::add);
+            if (current == project && this instanceof TestReactorDependency) {
+                current.getTestResources().stream().map(r -> Path.of(r.getDirectory())).forEach(result::add);
+            }
+            result.addAll(MavenResourceInputs.filterPaths(current, current == project && this instanceof TestReactorDependency,
+                    artifactResolver == null ? null : artifactResolver.getMavenSession()));
+            for (MavenProject parent = current; parent != null; parent = parent.getParent()) {
+                if (parent.getFile() != null) result.add(parent.getFile().toPath());
             }
         }
-        return result;
+        getResourceArtifacts().stream().filter(a -> !isReactorResource(a) || "provided".equals(a.getScope())).map(Artifact::getFile)
+                .filter(Objects::nonNull).map(java.io.File::toPath).forEach(result::add);
+        return result.stream().distinct().toList();
     }
 
     public List<Path> getHashPaths() {
         List<Path> result = new ArrayList<>(getSourcePaths());
         result.addAll(additionalSourcePaths);
-        return result;
+        if (project != null) {
+            for (MavenProject current : getResourceProjects()) {
+                for (MavenProject parent = current; parent != null; parent = parent.getParent()) {
+                    if (parent.getFile() != null && parent.getFile().isFile()) result.add(parent.getFile().toPath());
+                }
+                current.getResources().stream().map(r -> Path.of(r.getDirectory()))
+                        .filter(Files::exists).forEach(result::add);
+                MavenResourceInputs.filterPaths(current, current == project && this instanceof TestReactorDependency,
+                        artifactResolver == null ? null : artifactResolver.getMavenSession()).stream()
+                        .filter(Files::exists).forEach(result::add);
+            }
+            getResourceArtifacts().stream().filter(a -> !isReactorResource(a) || "provided".equals(a.getScope()))
+                    .map(Artifact::getFile).filter(Objects::nonNull).map(java.io.File::toPath)
+                    .filter(Files::exists).forEach(result::add);
+        }
+        return result.stream().distinct().toList();
+    }
+
+    public String getHash() {
+        String inputs = Hashing.hash(getHashPaths());
+        if (project == null) return inputs;
+        String resources = getResourceProjects().stream()
+                .map(current -> MavenResourceInputs.fingerprint(current, current == project && this instanceof TestReactorDependency,
+                        artifactResolver == null ? null : artifactResolver.getMavenSession()))
+                .collect(Collectors.joining());
+        return inputs + com.google.common.hash.Hashing.sha256().hashUnencodedChars(resources).toString();
     }
 
     @Override

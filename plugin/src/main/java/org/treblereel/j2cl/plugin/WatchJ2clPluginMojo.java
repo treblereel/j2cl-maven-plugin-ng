@@ -281,6 +281,10 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
     void rebuild(ReactorDependency project, BuildContext buildContext,
                          BuildLog buildLog, Set<String> changedFiles) {
+        if (hasModelChange(project, changedFiles, new HashSet<>())) {
+            buildLog.warn("Maven POM changed; restart watch to reload profiles and resource configuration.");
+            return;
+        }
         buildLog.info("Recompiling...");
         long start = System.currentTimeMillis();
 
@@ -298,6 +302,19 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.error("Recompilation failed: " + e.getMessage());
             buildLog.info("Waiting for next change...");
         }
+    }
+
+    private boolean hasModelChange(ReactorDependency dep, Set<String> changedFiles, Set<String> visited) {
+        if (!visited.add(dep.key())) return false;
+        for (var project : dep.getResourceProjects()) {
+            for (var current = project; current != null; current = current.getParent()) {
+                if (current.getFile() != null && changedFiles.stream().map(Path::of)
+                        .map(p -> p.toAbsolutePath().normalize())
+                        .anyMatch(current.getFile().toPath().toAbsolutePath().normalize()::equals)) return true;
+            }
+        }
+        return dep.getDependencies().stream().filter(ReactorDependency.class::isInstance)
+                .map(ReactorDependency.class::cast).anyMatch(child -> hasModelChange(child, changedFiles, visited));
     }
 
     private Set<String> findChangedModules(ReactorDependency dep, Set<String> changedFiles, Set<String> visited) {

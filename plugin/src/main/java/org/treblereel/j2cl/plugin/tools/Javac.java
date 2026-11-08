@@ -28,6 +28,13 @@ public class Javac {
     public Javac(BuildLog log, File generatedSourcesDir, List<File> sourcePaths,
                  List<File> classpath, File classOutputDir, File bootstrapClasspath,
                  List<String> processorNames, List<String> javacOpts) throws IOException {
+        this(log, generatedSourcesDir, sourcePaths, classpath, classOutputDir, bootstrapClasspath,
+                processorNames, javacOpts, classpath);
+    }
+
+    public Javac(BuildLog log, File generatedSourcesDir, List<File> sourcePaths,
+                 List<File> classpath, File classOutputDir, File bootstrapClasspath,
+                 List<String> processorNames, List<String> javacOpts, List<File> processorPath) throws IOException {
         this.log = log;
 
         javacOptions = new ArrayList<>();
@@ -52,6 +59,9 @@ public class Javac {
 
         fileManager.setLocation(StandardLocation.SOURCE_PATH, sourcePaths);
         fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
+        if (!processorNames.isEmpty()) {
+            fileManager.setLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH, processorPath);
+        }
         fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(classOutputDir));
 
         if (bootstrapClasspath != null) {

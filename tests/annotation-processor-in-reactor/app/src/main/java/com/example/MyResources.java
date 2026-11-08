@@ -4,6 +4,12 @@ package com.example;
 public interface MyResources {
     public static final MyResources INSTANCE = new MyResources_Impl();
 
+    @MyAnnotation("app-main.txt")
+    String applicationMainResource();
+
+    @MyAnnotation("app-shared.txt")
+    String applicationSharedResource();
+
     @MyAnnotation("res-in-root-dir.txt")
     String resourceInRoot();
     @MyAnnotation("com/example/res-in-package.txt")

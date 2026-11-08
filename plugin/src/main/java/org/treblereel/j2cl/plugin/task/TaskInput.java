@@ -23,7 +23,6 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.BuildStatus;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
-import org.treblereel.j2cl.plugin.tools.Hashing;
 
 import static org.treblereel.j2cl.plugin.utils.FileUtils.deleteDirectoryRecursive;
 
@@ -214,7 +213,7 @@ public abstract class TaskInput {
         try {
             BuildStatus status = readStatus();
             String sourceHash = dependency.isSourceMapped()
-                    ? Hashing.hash(((ReactorDependency) dependency).getHashPaths()) : null;
+                    ? ((ReactorDependency) dependency).getHash() : null;
             if (status == null || !java.util.Objects.equals(sourceHash, status.getHash())) {
                 status = new BuildStatus();
                 status.setHash(sourceHash);
@@ -271,7 +270,7 @@ public abstract class TaskInput {
             }
             return !dependency.isSourceMapped()
                     || java.util.Objects.equals(status.getHash(),
-                            Hashing.hash(((ReactorDependency) dependency).getHashPaths()));
+                            ((ReactorDependency) dependency).getHash());
         } catch (IOException e) {
             throw new RuntimeException("Unable to read success marker for " + key(), e);
         }

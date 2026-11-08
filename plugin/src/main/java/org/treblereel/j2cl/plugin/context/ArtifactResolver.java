@@ -3,6 +3,7 @@ package org.treblereel.j2cl.plugin.context;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +49,10 @@ public class ArtifactResolver {
     private final MavenSession mavenSession;
     private final DependencyMediation dependencyMediation;
     private final boolean includeCompileSourceRoots;
+
+    public MavenSession getMavenSession() {
+        return mavenSession;
+    }
 
     public boolean isIncludeCompileSourceRoots() {
         return includeCompileSourceRoots;
@@ -99,7 +104,7 @@ public class ArtifactResolver {
                     .filter(Objects::nonNull)
                     .map(this::toDependency)
                     .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
         } catch (ProjectBuildingException e) {
             throw new RuntimeException("Failed to build project for artifact " + artifact, e);
         }
@@ -112,7 +117,7 @@ public class ArtifactResolver {
             org.apache.maven.artifact.Artifact replacement = defaultDependencyReplacement.get(key);
             return replacement == null ? null : new JarDependency(getDependency(replacement), this);
         }
-        if (isInReactor(artifact)) {
+        if (isInReactor(artifact) && !artifact.hasClassifier() && "jar".equals(artifact.getType())) {
             return new ReactorDependency(getMavenProject(artifact), this);
         }
         return new JarDependency(artifact, this);
@@ -217,10 +222,10 @@ public class ArtifactResolver {
             if (depArtifacts == null && resolved.getArtifacts() != null) {
                 Set<String> directDepKeys = project.getDependencies().stream()
                         .map(d -> d.getGroupId() + ":" + d.getArtifactId())
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
                 depArtifacts = resolved.getArtifacts().stream()
                         .filter(a -> directDepKeys.contains(a.getGroupId() + ":" + a.getArtifactId()))
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
             }
             if (depArtifacts == null) {
                 depArtifacts = Set.of();

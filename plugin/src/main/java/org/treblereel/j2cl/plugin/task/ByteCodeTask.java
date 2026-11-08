@@ -23,13 +23,17 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.JarDependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
+import org.treblereel.j2cl.plugin.model.TestReactorDependency;
 import org.treblereel.j2cl.plugin.tools.AptPath;
 import org.treblereel.j2cl.plugin.tools.Javac;
+import org.treblereel.j2cl.plugin.tools.MavenResourceInputs;
 
 import static org.treblereel.j2cl.plugin.tools.J2CLModuleParser.getSuperSourcePaths;
 import static org.treblereel.j2cl.plugin.tools.ServiceFileReader.readProcessors;
 
 public class ByteCodeTask extends TaskInput {
+
+    public static final String APT_RESOURCES = "apt-resources";
 
     public static final PathMatcher JAVA_SOURCES = withSuffix(".java");
     public static final PathMatcher TURBINE_OUTPUT = filename("output.jar");
@@ -56,8 +60,9 @@ public class ByteCodeTask extends TaskInput {
                 .map(f -> f.getAbsolutePath().toString())
                 .toList();
 
+        List<Dependency> dependencies = getFlattenDependencies();
         Set<String> moduleDependencies = Stream.concat(extraClasspath.stream().map(File::toString),
-                        input(getFlattenDependencies(), OutputTypes.BYTECODE)
+                        input(dependencies, OutputTypes.BYTECODE)
                                 .filter(TURBINE_OUTPUT)
                                 .files()
                                 .stream()
@@ -117,7 +122,8 @@ public class ByteCodeTask extends TaskInput {
             if (!annotationProcessorNames.isEmpty()) {
                 for (Artifact artifact : project.getDependencyArtifacts()) {
                     if ("provided".equals(artifact.getScope()) || "test".equals(artifact.getScope())) continue;
-                    if (artifact.getFile() != null && artifact.getFile().isFile()) {
+                    if (!buildContext.getArtifactResolver().isInReactor(artifact)
+                            && artifact.getFile() != null && artifact.getFile().isFile()) {
                         String depPath = artifact.getFile().getAbsolutePath();
                         moduleDependencies.add(depPath);
                         annotationProcessorJars.add(depPath);
@@ -131,6 +137,45 @@ public class ByteCodeTask extends TaskInput {
             moduleDependencies.add(aptPath.annotationProcessorFile().getAbsolutePath());
             annotationProcessorJars.add(aptPath.annotationProcessorFile().getAbsolutePath());
             annotationProcessorNames.addAll(aptPath.annotationProcessorName());
+        }
+
+        if (dependency instanceof ReactorDependency reactor) {
+            MavenResourceInputs.prepare(reactor.getMavenProject(), reactor instanceof TestReactorDependency,
+                    buildContext.getArtifactResolver() == null ? null : buildContext.getArtifactResolver().getMavenSession(),
+                    outputPath().resolve(APT_RESOURCES));
+        }
+        if (!annotationProcessorNames.isEmpty()) {
+            List<String> resourcePaths = new ArrayList<>();
+            if (dependency instanceof ReactorDependency) resourcePaths.add(outputPath().resolve(APT_RESOURCES).toString());
+            for (Dependency dep : dependencies) {
+                if (dep instanceof ReactorDependency) {
+                    for (Path path : input(dep, OutputTypes.BYTECODE).paths()) {
+                        resourcePaths.add(path.resolve(APT_RESOURCES).toString());
+                        resourcePaths.add(path.toString());
+                    }
+                } else if (dep instanceof JarDependency jar && jar.bytecodeJar() != null) {
+                    resourcePaths.add(jar.bytecodeJar().getAbsolutePath());
+                }
+            }
+            if (dependency instanceof ReactorDependency reactor) {
+                for (MavenProject project : reactor.getResourceProjects()) {
+                    if (project == reactor.getMavenProject() || dependencies.stream()
+                            .filter(ReactorDependency.class::isInstance).map(ReactorDependency.class::cast)
+                            .anyMatch(dep -> dep.getMavenProject().equals(project))) continue;
+                    Path prepared = outputPath().resolve("apt-dependencies").resolve(project.getGroupId() + "-" + project.getArtifactId());
+                    MavenResourceInputs.prepare(project, false, buildContext.getArtifactResolver().getMavenSession(), prepared);
+                    resourcePaths.add(prepared.toString());
+                }
+                for (Artifact artifact : reactor.getResourceArtifacts()) {
+                    if (artifact.getFile() != null && artifact.getFile().exists()
+                            && !(buildContext.getArtifactResolver() != null
+                            && buildContext.getArtifactResolver().isInReactor(artifact) && !artifact.hasClassifier()
+                            && "jar".equals(artifact.getType()))) {
+                        resourcePaths.add(artifact.getFile().getAbsolutePath());
+                    }
+                }
+            }
+            annotationProcessorJars.addAll(0, resourcePaths.stream().distinct().toList());
         }
 
         List<String> javacOpts = new ArrayList<>();
@@ -169,6 +214,8 @@ public class ByteCodeTask extends TaskInput {
         }
 
         annotationProcessorJars.forEach(classpathSet::add);
+        Set<String> processorClasspath = new LinkedHashSet<>(annotationProcessorJars);
+        processorClasspath.addAll(classpathSet);
 
         if (dependency.isSourceMapped()) {
             MavenProject project = ((ReactorDependency) dependency).getMavenProject();
@@ -182,8 +229,8 @@ public class ByteCodeTask extends TaskInput {
 
         List<File> classpath = classpathSet.stream().map(File::new).toList();
 
-        List<File> sourcePaths = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES)
-                .paths().stream().map(Path::toFile).toList();
+        List<File> sourcePaths = List.of(outputPath().resolve(APT_RESOURCES).toFile(),
+                getOutputDirectory().resolve(OutputTypes.STRIPPED_SOURCES.getName()).toFile());
 
         File bootstrapClasspath = buildContext.getConfig().getBootstrapClasspath();
         File classOutputDir = outputPath().resolve("classes").toFile();
@@ -192,7 +239,8 @@ public class ByteCodeTask extends TaskInput {
         try {
             Javac javac = new Javac(logger, outputPath().toFile(), sourcePaths,
                     classpath, classOutputDir, bootstrapClasspath,
-                    annotationProcessorNames, javacOpts);
+                    annotationProcessorNames, javacOpts,
+                    processorClasspath.stream().map(File::new).toList());
 
             if (!javac.compile(sources)) {
                 throw new RuntimeException(

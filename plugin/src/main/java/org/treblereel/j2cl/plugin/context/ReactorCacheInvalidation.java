@@ -16,7 +16,6 @@ import org.treblereel.j2cl.plugin.model.BuildStatus;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.TaskInput;
-import org.treblereel.j2cl.plugin.tools.Hashing;
 
 /** Invalidates changed reactor modules and their consumers before a cached root task can return. */
 public final class ReactorCacheInvalidation {
@@ -66,7 +65,7 @@ public final class ReactorCacheInvalidation {
         try {
             BuildStatus status = new Gson().fromJson(Files.readString(marker), BuildStatus.class);
             return status == null || status.getHash() == null || status.getOutputTypes() == null
-                    || !status.getHash().equals(Hashing.hash(module.getHashPaths()));
+                    || !status.getHash().equals(module.getHash());
         } catch (JsonParseException e) {
             return true;
         } catch (IOException e) {
