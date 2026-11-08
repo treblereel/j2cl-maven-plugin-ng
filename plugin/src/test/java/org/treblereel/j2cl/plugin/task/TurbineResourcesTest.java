@@ -61,6 +61,35 @@ class TurbineResourcesTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"META-INF/module.j2cl.xml", "Emulation.gwt.xml"})
+    void resourceJavaAndNativeInputsAreNotReportedAsGeneratedOutputs(String module) throws Exception {
+        MavenProject app = project("app");
+        Path resources = Files.createDirectories(app.getBasedir().toPath().resolve("resources"));
+        Files.createDirectories(resources.resolve(module).getParent());
+        resource(app, false, "resources", module, "<module><super-source path=\"emul\"/></module>");
+        Path emulation = Files.createDirectories(resources.resolve("emul/java/lang"));
+        String java = "package java.lang; public class NoSuchMethodException {}";
+        Files.writeString(emulation.resolve("NoSuchMethodException.java"), java);
+        Files.writeString(emulation.resolve("NoSuchMethodException.native.js"), "// native input");
+        MavenProject lib = project("lib");
+        resource(lib, false, "resources", "LibraryResource.java", "// dependency resource");
+        Artifact provided = artifact("lib", null, "provided", null);
+        app.setDependencyArtifacts(Set.of(provided));
+        app.setArtifacts(Set.of(provided));
+        ArtifactResolver resolver = resolver(app, lib);
+        try (BuildContext context = context(app, resolver, "example.app.MainInput",
+                "emul/java/lang/NoSuchMethodException.java=" + java
+                        + "|LibraryResource.java=// dependency resource", "", true)) {
+            Path bytecode = new TurbineCodeTask(new ReactorDependency(app, resolver), context, LOG).runTask().join();
+            TaskOutput outputs = new TaskOutput(List.of(bytecode));
+            assertEquals(List.of(Path.of("example/GeneratedResourceProof.java")),
+                    outputs.filter(ByteCodeTask.JAVA_SOURCES).files().stream().map(FileEntry::getSourcePath).toList());
+            assertEquals(List.of(Path.of("example/GeneratedResourceProof.native.js")),
+                    outputs.filter(J2CLTask.NATIVE_JS_SOURCES).files().stream().map(FileEntry::getSourcePath).toList());
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"compile", "provided"})
     void turbineReadsFilteredProjectReactorAndOriginalJarResources(String scope) throws Exception {
         MavenProject lib = project("lib");
@@ -116,7 +145,7 @@ class TurbineResourcesTest {
                 "main.txt=main|shared.txt=test version|test.txt=test|jar.txt=test dependency", "")) {
             context.setWatchMode(watch);
             new TurbineCodeTask(tests, context, LOG).runTask().join();
-            Path cachedMain = context.getOutputDirectory().resolve(mainDep.key()).resolve("bytecode/apt-resources");
+            Path cachedMain = context.getOutputDirectory().resolve(mainDep.key()).resolve(ByteCodeTask.APT_RESOURCES);
             assertFalse(Files.exists(cachedMain.resolve("test.txt")));
             assertEquals("main version", Files.readString(cachedMain.resolve("shared.txt")));
             assertTrue(tests.getHashPaths().contains(Path.of(main.getDirectory())));
@@ -163,7 +192,7 @@ class TurbineResourcesTest {
         }
         try (BuildContext context = context(app, resolver, "example.app.MainInput", "jar.txt=after", "selected.txt|excluded.txt")) {
             new TurbineCodeTask(root, context, LOG).runTask().join();
-            Path staged = context.getOutputDirectory().resolve(root.key()).resolve("bytecode/apt-resources");
+            Path staged = context.getOutputDirectory().resolve(root.key()).resolve(ByteCodeTask.APT_RESOURCES);
             assertFalse(Files.exists(staged.resolve("selected.txt")));
             assertTrue(root.getWatchSourcePaths().contains(filters));
         }
@@ -269,6 +298,11 @@ class TurbineResourcesTest {
 
     private BuildContext context(MavenProject project, ArtifactResolver resolver, String root, String checks, String absent)
             throws Exception {
+        return context(project, resolver, root, checks, absent, false);
+    }
+
+    private BuildContext context(MavenProject project, ArtifactResolver resolver, String root, String checks,
+                                 String absent, boolean generate) throws Exception {
         Path processors = directory.resolve("processor.jar");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(processors))) {
             for (Class<?> type : List.of(ResourceProcessor.class, TurbineResourcesTest.class)) {
@@ -282,7 +316,7 @@ class TurbineResourcesTest {
         }
         BuildConfig config = new BuildConfig(List.of(), List.of(), null, "app.js", directory.toString(),
                 "ADVANCED_OPTIMIZATIONS", Map.of(), false, null, false, "ECMASCRIPT_2017", true, "BROWSER",
-                Map.of("resource.root", root, "resource.checks", checks, "resource.absent", absent),
+                Map.of("resource.root", root, "resource.checks", checks, "resource.absent", absent, "resource.generate", Boolean.toString(generate)),
                 List.of(new AptPath(processors.toFile(), List.of(ResourceProcessor.class.getName()))));
         return new BuildContext(project, config, resolver, null);
     }
@@ -291,7 +325,7 @@ class TurbineResourcesTest {
         @Override
         public Set<String> getSupportedAnnotationTypes() { return Set.of("*"); }
         @Override
-        public Set<String> getSupportedOptions() { return Set.of("resource.root", "resource.checks", "resource.absent"); }
+        public Set<String> getSupportedOptions() { return Set.of("resource.root", "resource.checks", "resource.absent", "resource.generate"); }
         @Override
         public SourceVersion getSupportedSourceVersion() { return SourceVersion.latestSupported(); }
         @Override
@@ -310,6 +344,15 @@ class TurbineResourcesTest {
                         throw new AssertionError("Resource must not be visible: " + absent);
                     } catch (java.io.FileNotFoundException expected) {
                         // Excluded and test-only resources must stay out of this processor invocation.
+                    }
+                }
+                if (Boolean.parseBoolean(processingEnv.getOptions().get("resource.generate"))) {
+                    try (var writer = processingEnv.getFiler().createSourceFile("example.GeneratedResourceProof").openWriter()) {
+                        writer.write("package example; public class GeneratedResourceProof {}");
+                    }
+                    try (var writer = processingEnv.getFiler().createResource(StandardLocation.SOURCE_OUTPUT,
+                            "example", "GeneratedResourceProof.native.js").openWriter()) {
+                        writer.write("// generated native output");
                     }
                 }
             } catch (IOException e) {

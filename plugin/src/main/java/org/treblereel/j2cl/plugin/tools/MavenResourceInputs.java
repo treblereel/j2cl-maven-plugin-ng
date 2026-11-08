@@ -24,6 +24,8 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.codehaus.plexus.util.xml.Xpp3DomUtils;
 import org.sonatype.plexus.build.incremental.DefaultBuildContext;
 
+import static org.treblereel.j2cl.plugin.utils.FileUtils.deleteDirectoryRecursive;
+
 /** Prepares resource inputs without depending on process-resources having run. */
 public final class MavenResourceInputs {
     private static final String PLUGIN = "org.apache.maven.plugins:maven-resources-plugin";
@@ -33,6 +35,7 @@ public final class MavenResourceInputs {
 
     public static void prepare(MavenProject project, boolean tests, MavenSession session, Path output) {
         try {
+            deleteDirectoryRecursive(output);
             Files.createDirectories(output);
             copy(project, false, session, output);
             if (tests) copy(project, true, session, output);
@@ -102,6 +105,8 @@ public final class MavenResourceInputs {
 
     public static String fingerprint(MavenProject project, boolean tests, MavenSession session) {
         Map<String, Object> settings = new TreeMap<>();
+        // Rebuild old bytecode trees that mixed resource inputs with generated sources.
+        settings.put("format", 2);
         settings.put("main", project.getResources());
         settings.put("mainConfiguration", configuration(project, false).toString());
         if (tests) {

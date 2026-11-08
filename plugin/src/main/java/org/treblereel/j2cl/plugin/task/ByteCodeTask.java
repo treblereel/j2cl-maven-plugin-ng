@@ -142,15 +142,15 @@ public class ByteCodeTask extends TaskInput {
         if (dependency instanceof ReactorDependency reactor) {
             MavenResourceInputs.prepare(reactor.getMavenProject(), reactor instanceof TestReactorDependency,
                     buildContext.getArtifactResolver() == null ? null : buildContext.getArtifactResolver().getMavenSession(),
-                    outputPath().resolve(APT_RESOURCES));
+                    getOutputDirectory().resolve(APT_RESOURCES));
         }
         if (!annotationProcessorNames.isEmpty()) {
             List<String> resourcePaths = new ArrayList<>();
-            if (dependency instanceof ReactorDependency) resourcePaths.add(outputPath().resolve(APT_RESOURCES).toString());
+            if (dependency instanceof ReactorDependency) resourcePaths.add(getOutputDirectory().resolve(APT_RESOURCES).toString());
             for (Dependency dep : dependencies) {
                 if (dep instanceof ReactorDependency) {
                     for (Path path : input(dep, OutputTypes.BYTECODE).paths()) {
-                        resourcePaths.add(path.resolve(APT_RESOURCES).toString());
+                        resourcePaths.add(path.getParent().resolve(APT_RESOURCES).toString());
                         resourcePaths.add(path.toString());
                     }
                 } else if (dep instanceof JarDependency jar && jar.bytecodeJar() != null) {
@@ -162,7 +162,7 @@ public class ByteCodeTask extends TaskInput {
                     if (project == reactor.getMavenProject() || dependencies.stream()
                             .filter(ReactorDependency.class::isInstance).map(ReactorDependency.class::cast)
                             .anyMatch(dep -> dep.getMavenProject().equals(project))) continue;
-                    Path prepared = outputPath().resolve("apt-dependencies").resolve(project.getGroupId() + "-" + project.getArtifactId());
+                    Path prepared = getOutputDirectory().resolve("apt-dependencies").resolve(project.getGroupId() + "-" + project.getArtifactId());
                     MavenResourceInputs.prepare(project, false, buildContext.getArtifactResolver().getMavenSession(), prepared);
                     resourcePaths.add(prepared.toString());
                 }
@@ -229,7 +229,7 @@ public class ByteCodeTask extends TaskInput {
 
         List<File> classpath = classpathSet.stream().map(File::new).toList();
 
-        List<File> sourcePaths = List.of(outputPath().resolve(APT_RESOURCES).toFile(),
+        List<File> sourcePaths = List.of(getOutputDirectory().resolve(APT_RESOURCES).toFile(),
                 getOutputDirectory().resolve(OutputTypes.STRIPPED_SOURCES.getName()).toFile());
 
         File bootstrapClasspath = buildContext.getConfig().getBootstrapClasspath();
