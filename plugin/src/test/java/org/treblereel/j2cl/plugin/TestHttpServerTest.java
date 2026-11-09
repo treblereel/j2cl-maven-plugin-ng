@@ -56,7 +56,7 @@ class TestHttpServerTest {
         for (String target : new String[]{
                 "/../secret.txt", "/%2e%2e/secret.txt", "/%2E%2E%2Fsecret.txt",
                 "/nested/../../secret.txt", "/../web-other/secret.txt",
-                "/%2f" + directory.resolve("secret.txt").toString().substring(1),
+                "/%2f" + directory.resolve("secret.txt").toUri().getRawPath().substring(1),
                 "/%00bad", "/missing.js", "/nested/"}) {
             assertDenied(target);
         }
