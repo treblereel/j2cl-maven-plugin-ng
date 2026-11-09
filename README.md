@@ -329,13 +329,28 @@ Auto-detect XTB file by locale:
 
 ### Annotation Processors with Arguments
 
+All `defines` are also passed to annotation processors as `-Akey=value` options,
+available through `processingEnv.getOptions()`. Keys are preserved and values are
+converted to strings, including booleans and numbers. Explicit
+`annotationProcessorsArgs` override matching defines for APT only.
+
 ```xml
 <configuration>
+    <defines>
+        <goog.LOCALE>fr</goog.LOCALE>
+    </defines>
     <annotationProcessorsArgs>
         <optionName>my-option</optionName>
     </annotationProcessorsArgs>
 </configuration>
 ```
+
+Here the processor receives `goog.LOCALE=fr` and `optionName=my-option`.
+Changing the effective APT options invalidates generated sources and downstream
+compilation caches in build, test and watch mode.
+
+This applies to processors executed by the J2CL plugin. In `IGNORE_MAVEN` mode,
+Maven's own processors take their options from `maven-compiler-plugin`.
 
 ### Resources Available to Annotation Processors
 

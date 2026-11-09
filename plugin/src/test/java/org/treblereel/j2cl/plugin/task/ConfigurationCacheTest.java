@@ -61,12 +61,36 @@ class ConfigurationCacheTest {
     }
 
     @Test
-    void definesInvalidateClosureButNotJava() {
+    void definesInvalidateAptAndDownstreamStagesButKeepSourcePreparation() {
         BuildConfig first = config("ADVANCED_OPTIMIZATIONS", Map.of("flag", true), Map.of());
         BuildConfig second = config("ADVANCED_OPTIMIZATIONS", Map.of("flag", false), Map.of());
+        for (OutputTypes type : List.of(OutputTypes.UNZIPPED_DEPENDENCIES, OutputTypes.STRIPPED_SOURCES)) {
+            assertEquals(hash(first, type), hash(second, type));
+        }
+        for (OutputTypes type : List.of(OutputTypes.BYTECODE, OutputTypes.TRANSPILED_JS,
+                OutputTypes.TRANSPILED_WASM, OutputTypes.OPTIMIZED_JS, OutputTypes.FINAL_TASK)) {
+            assertNotEquals(hash(first, type), hash(second, type));
+        }
+    }
+
+    @Test
+    void explicitProcessorArgumentsOverrideDefinesWithoutChangingClosureDefines() {
+        Map<String, Object> defines = Map.of("goog.LOCALE", "fr", "feature.enabled", true, "limit", 42);
+        Map<String, String> arguments = Map.of("goog.LOCALE", "de", "processor.only", "value");
+        BuildConfig config = config("ADVANCED_OPTIMIZATIONS", defines, arguments);
+        assertEquals(Map.of("goog.LOCALE", "de", "feature.enabled", "true", "limit", "42", "processor.only", "value"),
+                config.annotationProcessorsArgs());
+        assertEquals(defines, config.defines());
+        assertEquals(Map.of("goog.LOCALE", "de", "processor.only", "value"), arguments);
+    }
+
+    @Test
+    void overriddenDefineDoesNotInvalidateJavaButStillInvalidatesClosure() {
+        BuildConfig first = config("ADVANCED_OPTIMIZATIONS", Map.of("goog.LOCALE", "fr"), Map.of("goog.LOCALE", "de"));
+        BuildConfig second = config("ADVANCED_OPTIMIZATIONS", Map.of("goog.LOCALE", "es"), Map.of("goog.LOCALE", "de"));
+        assertEquals(hash(first, OutputTypes.BYTECODE), hash(second, OutputTypes.BYTECODE));
         assertEquals(hash(first, OutputTypes.TRANSPILED_JS), hash(second, OutputTypes.TRANSPILED_JS));
         assertNotEquals(hash(first, OutputTypes.OPTIMIZED_JS), hash(second, OutputTypes.OPTIMIZED_JS));
-        assertNotEquals(hash(first, OutputTypes.FINAL_TASK), hash(second, OutputTypes.FINAL_TASK));
     }
 
     @Test

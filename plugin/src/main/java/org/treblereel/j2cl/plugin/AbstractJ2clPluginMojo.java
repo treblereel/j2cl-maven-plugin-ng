@@ -136,6 +136,7 @@ public abstract class AbstractJ2clPluginMojo extends AbstractMojo {
 
     /**
      * Arguments to pass to annotation processors, in the form of key-value pairs.
+     * These override matching defines, which are also passed as processor options.
      */
     @Parameter
     protected Map<String, String> annotationProcessorsArgs = new TreeMap<>();

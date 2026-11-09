@@ -22,4 +22,6 @@ public interface MyOption {
 
     String getOption();
 
+    String getLocale();
+
 }

@@ -56,6 +56,9 @@
                 <artifactId>j2cl-maven-plugin</artifactId>
                 <version>0.24.3-SNAPSHOT</version>
                 <configuration>
+                    <defines>
+                        <goog.LOCALE>fr</goog.LOCALE>
+                    </defines>
                     <annotationProcessorsArgs>
                         <optionName>my-option</optionName>
                     </annotationProcessorsArgs>

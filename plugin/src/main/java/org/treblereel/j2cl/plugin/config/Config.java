@@ -29,6 +29,7 @@ public interface Config {
 
     String env();
 
+    /** Effective APT options: stringified defines, overridden by explicit processor arguments. */
     Map<String, String> annotationProcessorsArgs();
 
     List<File> getExtraClasspath();
