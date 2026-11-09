@@ -2,10 +2,12 @@ package org.treblereel.j2cl.plugin.model;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.maven.artifact.Artifact;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
+import org.treblereel.j2cl.plugin.tools.Hashing;
 
 public class JarDependency implements Dependency {
 
@@ -58,6 +60,11 @@ public class JarDependency implements Dependency {
 
     public File bytecodeJar() {
         return artifact.getFile();
+    }
+
+    @Override
+    public String getHash() {
+        return Hashing.hash(List.of(bytecodeJar().toPath()));
     }
 
     @Override

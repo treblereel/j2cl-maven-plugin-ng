@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.treblereel.j2cl.plugin.model.BuildStatus;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.model.JarDependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.OutputTypes;
 import org.treblereel.j2cl.plugin.tools.Hashing;
@@ -62,6 +63,29 @@ class ReactorCacheInvalidationTest {
         assertFalse(Files.exists(marker(app)));
     }
 
+    @Test
+    void changedJarInvalidatesJarAndReactorConsumers() throws IOException {
+        Path artifact = Files.writeString(directory.resolve("snapshot.jar"), "original");
+        var mavenArtifact = new org.apache.maven.artifact.DefaultArtifact("test", "lib", "1-SNAPSHOT",
+                "compile", "jar", null, new org.apache.maven.artifact.handler.DefaultArtifactHandler("jar"));
+        mavenArtifact.setFile(artifact.toFile());
+        JarDependency jar = new JarDependency(mavenArtifact, null) {
+            public Collection<Dependency> getDependencies() { return List.of(); }
+        };
+        Module app = module("app", jar);
+        BuildStatus status = new BuildStatus();
+        status.setHash(jar.getHash());
+        status.setOutputTypes(Set.of(OutputTypes.TRANSPILED_JS));
+        Path jarMarker = cache().resolve(jar.key()).resolve(".success");
+        Files.createDirectories(jarMarker.getParent());
+        Files.writeString(jarMarker, new Gson().toJson(status));
+        assertTrue(ReactorCacheInvalidation.invalidate(app, cache()).isEmpty());
+        Files.writeString(artifact, "changed");
+        assertEquals(Set.of(jar.key(), app.key()), ReactorCacheInvalidation.invalidate(app, cache()));
+        assertFalse(Files.exists(marker(app)));
+        assertFalse(Files.exists(jarMarker));
+    }
+
     private Path cache() {
         return directory.resolve("cache");
     }
@@ -70,7 +94,7 @@ class ReactorCacheInvalidationTest {
         return cache().resolve(module.key()).resolve(".success");
     }
 
-    private Module module(String key, Module... dependencies) throws IOException {
+    private Module module(String key, Dependency... dependencies) throws IOException {
         Path sources = Files.createDirectories(directory.resolve(key));
         Files.writeString(sources.resolve("Source.java"), "original");
         Module module = new Module(key, sources, List.of(dependencies));

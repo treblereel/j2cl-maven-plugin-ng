@@ -188,7 +188,8 @@ class TurbineResourcesTest {
             before = root.getHash();
             Files.writeString(app.getFile().toPath(), "<project><name>Changed filtering metadata</name></project>");
             assertNotEquals(before, root.getHash(), "POM metadata used by filtering must invalidate APT");
-            assertEquals(Set.of(root.key()), ReactorCacheInvalidation.invalidate(root, context.getOutputDirectory()));
+            assertEquals(Set.of(root.key(), resolver.toDependency(external).key()),
+                    ReactorCacheInvalidation.invalidate(root, context.getOutputDirectory()));
         }
         try (BuildContext context = context(app, resolver, "example.app.MainInput", "jar.txt=after", "selected.txt|excluded.txt")) {
             new TurbineCodeTask(root, context, LOG).runTask().join();

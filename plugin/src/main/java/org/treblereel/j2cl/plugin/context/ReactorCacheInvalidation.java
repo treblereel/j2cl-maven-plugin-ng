@@ -17,18 +17,18 @@ import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.ReactorDependency;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 
-/** Invalidates changed reactor modules and their consumers before a cached root task can return. */
+/** Invalidates changed inputs and their consumers before a cached root task can return. */
 public final class ReactorCacheInvalidation {
     private ReactorCacheInvalidation() {
     }
 
     public static Set<String> invalidate(ReactorDependency root, Path outputDirectory) {
-        Map<String, ReactorDependency> modules = new LinkedHashMap<>();
+        Map<String, Dependency> modules = new LinkedHashMap<>();
         Map<String, Set<String>> consumers = new HashMap<>();
         collect(root, modules, consumers);
 
         Set<String> dirty = new LinkedHashSet<>();
-        for (ReactorDependency module : modules.values()) {
+        for (Dependency module : modules.values()) {
             if (hasChanged(module, outputDirectory)) {
                 markConsumers(module.key(), consumers, dirty);
             }
@@ -44,20 +44,18 @@ public final class ReactorCacheInvalidation {
         return Set.copyOf(dirty);
     }
 
-    private static void collect(ReactorDependency module, Map<String, ReactorDependency> modules,
+    private static void collect(Dependency module, Map<String, Dependency> modules,
                                 Map<String, Set<String>> consumers) {
         if (modules.putIfAbsent(module.key(), module) != null) {
             return;
         }
         for (Dependency dependency : module.getDependencies()) {
-            if (dependency instanceof ReactorDependency child) {
-                consumers.computeIfAbsent(child.key(), key -> new LinkedHashSet<>()).add(module.key());
-                collect(child, modules, consumers);
-            }
+            consumers.computeIfAbsent(dependency.key(), key -> new LinkedHashSet<>()).add(module.key());
+            collect(dependency, modules, consumers);
         }
     }
 
-    private static boolean hasChanged(ReactorDependency module, Path outputDirectory) {
+    private static boolean hasChanged(Dependency module, Path outputDirectory) {
         Path marker = outputDirectory.resolve(module.key()).resolve(".success");
         if (!Files.isRegularFile(marker)) {
             return true;

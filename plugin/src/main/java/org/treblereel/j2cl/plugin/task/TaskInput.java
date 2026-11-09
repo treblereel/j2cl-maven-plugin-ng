@@ -22,7 +22,6 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.BuildStatus;
 import org.treblereel.j2cl.plugin.model.Dependency;
-import org.treblereel.j2cl.plugin.model.ReactorDependency;
 
 import static org.treblereel.j2cl.plugin.utils.FileUtils.deleteDirectoryRecursive;
 
@@ -212,8 +211,7 @@ public abstract class TaskInput {
     protected void markSuccess() {
         try {
             BuildStatus status = readStatus();
-            String sourceHash = dependency.isSourceMapped()
-                    ? ((ReactorDependency) dependency).getHash() : null;
+            String sourceHash = dependency.getHash();
             if (status == null || !java.util.Objects.equals(sourceHash, status.getHash())) {
                 status = new BuildStatus();
                 status.setHash(sourceHash);
@@ -268,9 +266,7 @@ public abstract class TaskInput {
                             .equals(status.getConfigurationHashes().get(getOutputTypes()))) {
                 return false;
             }
-            return !dependency.isSourceMapped()
-                    || java.util.Objects.equals(status.getHash(),
-                            ((ReactorDependency) dependency).getHash());
+            return java.util.Objects.equals(status.getHash(), dependency.getHash());
         } catch (IOException e) {
             throw new RuntimeException("Unable to read success marker for " + key(), e);
         }
