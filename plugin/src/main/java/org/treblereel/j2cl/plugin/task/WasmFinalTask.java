@@ -20,6 +20,7 @@ import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.tools.ClosureLibrary;
 import org.treblereel.j2cl.plugin.utils.FileUtils;
 
@@ -98,7 +99,7 @@ public class WasmFinalTask extends TaskInput {
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.setLanguageOut(CompilerOptions.LanguageMode.ECMASCRIPT_2017);
         options.setDependencyOptions(DependencyOptions.sortOnly());
-        Compiler compiler = new Compiler();
+        Compiler compiler = new ClosureCompiler();
         var result = compiler.compile(CommandLineRunner.getDefaultExterns(), inputs, options);
         if (!result.success) {
             result.errors.forEach(error -> logger.error(error.toString()));

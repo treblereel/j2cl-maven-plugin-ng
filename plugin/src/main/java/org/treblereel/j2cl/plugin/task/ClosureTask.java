@@ -39,6 +39,7 @@ import com.google.javascript.rhino.StaticSourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 import org.treblereel.j2cl.plugin.utils.FileUtils;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
@@ -176,16 +177,16 @@ public class ClosureTask extends TaskInput {
             List<SourceMap.LocationMapping> mappings = new ArrayList<>();
             Set<String> fixedPath = new HashSet<>();
             for (FileEntry file : selfJsOutPut.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (FileEntry file : depsTranspiled.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (FileEntry file : depsUnzipped.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (File f : extra) {
-                String zipPrefix = f.toPath().toString() + "!/";
+                String zipPrefix = f.toPath().toString().replace('\\', '/') + "!/";
                 String commonDir = null;
                 for (SourceFile sf : inputs) {
                     if (!sf.getName().startsWith(zipPrefix)) continue;
@@ -298,7 +299,7 @@ public class ClosureTask extends TaskInput {
 
     private Compiler runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
         Objects.requireNonNull(options);
-        Compiler compiler = new Compiler();
+        Compiler compiler = new ClosureCompiler();
         Result result = compiler.compile(externs, inputs, options);
 
         if (!result.success) {

@@ -16,6 +16,7 @@ import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public class ClosurePassTask extends TaskInput {
@@ -83,7 +84,7 @@ public class ClosurePassTask extends TaskInput {
         Object locale = buildContext.getConfig().defines().get("goog.LOCALE");
         XtbResolver.applyXtbFiles(options, xtbFiles, locale != null ? locale.toString() : null, logger);
 
-        Compiler compiler = new Compiler();
+        Compiler compiler = new ClosureCompiler();
         compiler.disableThreads();
         List<SourceFile> inputs = List.of(SourceFile.fromCode(name, source));
         Result result = compiler.compile(List.of(), inputs, options);

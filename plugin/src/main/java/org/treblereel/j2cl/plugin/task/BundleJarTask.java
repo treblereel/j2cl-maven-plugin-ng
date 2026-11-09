@@ -42,6 +42,7 @@ import com.google.javascript.jscomp.transpile.Transpiler;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class BundleJarTask extends TaskInput {
@@ -212,7 +213,7 @@ public class BundleJarTask extends TaskInput {
             if (sourceFiles.isEmpty()) continue;
 
             List<ClosureBundleTask.DependencyInfoAndSource> dependencyInfos = new ArrayList<>();
-            Compiler jsCompiler = new Compiler(System.err);
+            Compiler jsCompiler = new ClosureCompiler(System.err);
 
             for (SourceFile sf : sourceFiles) {
                 CompilerInput input = new CompilerInput(sf);

@@ -75,6 +75,7 @@ import org.treblereel.j2cl.plugin.task.OutputTypes;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.task.TaskInputFactory;
 import org.treblereel.j2cl.plugin.tools.AptPath;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.tools.ServiceFileReader;
@@ -509,7 +510,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 collectDependencyExterns(outputDir, testDep, allDeps, externs);
                 CompilerOptions options = createClosureOptions(testScriptFilename);
 
-                Compiler compiler = new Compiler();
+                Compiler compiler = new ClosureCompiler();
                 Result result = compiler.compile(externs, inputs, options);
 
                 if (!result.success) {
@@ -601,7 +602,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 List<SourceFile> externs = loadExterns();
                 CompilerOptions options = createWasmTestClosureOptions(testScriptFilename);
 
-                Compiler compiler = new Compiler();
+                Compiler compiler = new ClosureCompiler();
                 Result result = compiler.compile(externs, inputs, options);
 
                 if (!result.success) {
