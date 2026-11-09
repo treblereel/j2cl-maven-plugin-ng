@@ -74,6 +74,8 @@ public class ClosurePassTask extends TaskInput {
                                       java.util.List<File> xtbFiles) {
         CompilerOptions options = new CompilerOptions();
         CompilationLevel.WHITESPACE_ONLY.setOptionsForCompilationLevel(options);
+        // WHITESPACE_ONLY otherwise skips message replacement along with optimization passes.
+        options.setSkipNonTranspilationPasses(false);
         options.setClosurePass(false);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.setLanguageOut(CompilerOptions.LanguageMode.NO_TRANSPILE);
