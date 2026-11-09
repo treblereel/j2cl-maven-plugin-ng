@@ -65,7 +65,7 @@ jobs:
       run: mvn -B -f samples/single-module/pom.xml package "-Dcheckstyle.skip"
 
     - name: Check published JS and WASM in Chrome
-      run: mvn -B -pl plugin test -Dtest=BuildOutputIntegrationTest -Dj2cl.integration=true "-Dcheckstyle.skip"
+      run: mvn -B -pl plugin test -Dtest=BuildOutputIntegrationTest "-Dj2cl.integration=true" "-Dcheckstyle.skip"
 
   checkstyle:
     runs-on: ubuntu-latest

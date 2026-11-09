@@ -19,6 +19,6 @@ class CiWorkflowTest {
         assertTrue(workflow.contains("-f tests/pom.xml package"));
         assertTrue(workflow.contains("-f samples/single-module/pom.xml package"));
         assertTrue(workflow.contains("releases/download/version_"), "The integration reactor includes WASM builds");
-        assertTrue(workflow.contains("-Dtest=BuildOutputIntegrationTest -Dj2cl.integration=true"));
+        assertTrue(workflow.contains("-Dtest=BuildOutputIntegrationTest \"-Dj2cl.integration=true\""));
     }
 }
