@@ -43,8 +43,11 @@ jobs:
         esac
         arch=x86_64
         if [ "$RUNNER_ARCH" = ARM64 ]; then arch=arm64; fi
-        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_125/binaryen-version_125-${arch}-${platform}.tar.gz" -o "$RUNNER_TEMP/binaryen.tar.gz"
-        tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
+        binaryen_dir="$RUNNER_TEMP"
+        if [ "$RUNNER_OS" = Windows ]; then binaryen_dir=$(cygpath -u "$binaryen_dir"); fi
+        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_125/binaryen-version_125-${arch}-${platform}.tar.gz" -o "$binaryen_dir/binaryen.tar.gz"
+        # Read from stdin so GNU tar does not treat a Windows drive letter as a remote host.
+        tar -xzf - -C "$binaryen_dir" < "$binaryen_dir/binaryen.tar.gz"
         echo "$RUNNER_TEMP/binaryen-version_125/bin" >> "$GITHUB_PATH"
 
     - name: Check Binaryen
