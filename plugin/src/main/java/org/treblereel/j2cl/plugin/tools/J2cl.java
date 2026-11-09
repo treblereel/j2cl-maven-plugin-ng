@@ -226,7 +226,8 @@ public class J2cl {
         return result;
     }
 
-    private static String getModuleForEntry(String name) {
+    static String getModuleForEntry(String name) {
+        name = name.replace('\\', '/');
         for (var entry : NON_BASE_MODULE_PREFIXES.entrySet()) {
             if (name.startsWith(entry.getKey())) {
                 return entry.getValue();
