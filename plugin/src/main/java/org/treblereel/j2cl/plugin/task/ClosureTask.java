@@ -366,7 +366,10 @@ public class ClosureTask extends TaskInput {
                 break;
             }
         }
-        return p.subpath(publicIndex + 1, p.getNameCount());
+        if (publicIndex >= 0) {
+            return p.subpath(publicIndex + 1, p.getNameCount());
+        }
+        return p.subpath(META_INF_RESOURCES.getNameCount(), p.getNameCount());
     }
 
     private void setCompilationLevel(CompilerOptions options) {

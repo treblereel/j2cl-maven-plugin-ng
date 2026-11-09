@@ -17,7 +17,7 @@ public final class ConfigurationFingerprint {
 
     public static String hash(Config config, OutputTypes type, String compilerConfiguration) {
         Map<String, Object> values = new TreeMap<>();
-        values.put("format", 1);
+        values.put("format", 2);
         values.put("stage", type.name());
         values.put("j2cl", Versions.J2CL_VERSION);
         values.put("plugin", Versions.PLUGIN_VERSION);
