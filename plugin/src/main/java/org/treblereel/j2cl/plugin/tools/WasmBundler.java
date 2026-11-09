@@ -47,7 +47,8 @@ public class WasmBundler {
     public WasmBundler(BuildLog log, Map<String, String> defines, List<String> wasmEntryPoints) {
         this.log = log;
         this.defines = defines;
-        this.wasmEntryPoints = wasmEntryPoints;
+        this.wasmEntryPoints = wasmEntryPoints.stream()
+                .map(pattern -> pattern.replaceAll("(?<!\\.)\\*", ".*")).toList();
     }
 
     public boolean bundle(List<Path> moduleDirs, Path outputWat, Path jsImportsOutput) {
@@ -324,7 +325,7 @@ public class WasmBundler {
         Files.writeString(jsImportsOutput, content);
     }
 
-    private String generateWasmExports(List<String> contentsFragments) {
+    String generateWasmExports(List<String> contentsFragments) {
         // Build entry point matchers from patterns like ".*_Adapter#.*"
         List<Pattern[]> matchers = new ArrayList<>();
         for (String ep : wasmEntryPoints) {

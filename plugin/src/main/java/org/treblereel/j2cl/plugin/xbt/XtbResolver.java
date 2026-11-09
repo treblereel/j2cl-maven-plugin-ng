@@ -13,11 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.google.javascript.jscomp.CompilationLevel;
 import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.EmptyMessageBundle;
 import com.google.javascript.jscomp.XtbMessageBundle;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 
 public class XtbResolver {
+
+    public static void applyDefaultMessageBundle(CompilerOptions options, CompilationLevel level) {
+        // Match CommandLineRunner: process source messages before ADVANCED renames placeholder keys.
+        // A configured XTB bundle replaces this default in applyTranslations.
+        if (level == CompilationLevel.ADVANCED_OPTIMIZATIONS) {
+            options.setMessageBundle(new EmptyMessageBundle());
+        }
+    }
 
     public static void applyTranslations(CompilerOptions options, TranslationsFileConfig tf,
                                           Map<String, Object> defines, File projectBaseDir,
@@ -25,16 +35,16 @@ public class XtbResolver {
         List<File> xtbFiles = resolveTranslationsFiles(tf, defines, projectBaseDir, additionalSearchPaths, log);
         if (xtbFiles.isEmpty()) return;
 
+        for (File f : xtbFiles) {
+            log.info("Using translations file: " + f.getAbsolutePath());
+        }
+
         String locale = defines != null ? (String) defines.get("goog.LOCALE") : null;
         applyXtbFiles(options, xtbFiles, locale, log);
     }
 
     public static void applyXtbFiles(CompilerOptions options, List<File> xtbFiles,
                                       String locale, BuildLog log) {
-        for (File f : xtbFiles) {
-            log.info("Using translations file: " + f.getAbsolutePath());
-        }
-
         if (xtbFiles.size() == 1) {
             try (FileInputStream is = new FileInputStream(xtbFiles.get(0))) {
                 InputStream source = XtbPreprocessor.preprocess(is, locale);
@@ -130,27 +140,16 @@ public class XtbResolver {
         java.util.regex.Pattern localePattern = java.util.regex.Pattern.compile(
                 "[_\\-.](" + java.util.regex.Pattern.quote(locale)
                         + "|" + java.util.regex.Pattern.quote(normalizedLocale)
-                        + ")[_\\-.]");
-
-        List<Path> searchRoots = buildSearchRoots(baseDir, additionalSearchPaths);
+                        + "|" + java.util.regex.Pattern.quote(locale.replace("_", "-")) + ")[_\\-.]");
         List<File> found = new ArrayList<>();
-        for (Path root : searchRoots) {
-            if (!Files.exists(root)) continue;
-            try (Stream<Path> walk = Files.walk(root)) {
-                walk.filter(Files::isRegularFile)
-                        .filter(p -> p.toString().endsWith(".xtb"))
-                        .filter(p -> {
-                            String name = p.getFileName().toString();
-                            return localePattern.matcher(name).find();
-                        })
-                        .forEach(p -> {
-                            File file = p.toFile();
-                            if (!found.contains(file)) {
-                                found.add(file);
-                            }
-                        });
-            } catch (IOException | UncheckedIOException e) {
-                log.warn("Failed to scan for XTB files in " + root + ": " + e.getMessage());
+        // The bundle's lang is authoritative: a filename containing "fr" may actually be fr-nr.
+        for (File file : findAllXtb(baseDir, additionalSearchPaths, log)) {
+            // Preserve auto-discovery naming; do not ingest compiler outputs named generated_messages.xtb.
+            if (!localePattern.matcher(file.getName()).find()) continue;
+            try (InputStream input = new FileInputStream(file)) {
+                if (XtbPreprocessor.hasLocale(input, locale)) found.add(file);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to inspect translation locale in " + file, e);
             }
         }
 

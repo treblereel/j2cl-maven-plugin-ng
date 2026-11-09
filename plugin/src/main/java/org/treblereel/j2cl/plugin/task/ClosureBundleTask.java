@@ -30,6 +30,7 @@ import com.google.javascript.jscomp.transpile.Transpiler;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 
 public class ClosureBundleTask extends TaskInput {
 
@@ -105,7 +106,7 @@ public class ClosureBundleTask extends TaskInput {
         }
 
         List<DependencyInfoAndSource> dependencyInfos = new ArrayList<>();
-        Compiler jsCompiler = new Compiler(System.err);
+        Compiler jsCompiler = new ClosureCompiler(System.err);
 
         for (FileEntry file : jsFiles) {
             CompilerInput input = new CompilerInput(SourceFile.builder()

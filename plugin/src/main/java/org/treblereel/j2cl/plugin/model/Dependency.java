@@ -12,6 +12,8 @@ public interface Dependency {
 
     boolean isSourceMapped();
 
+    String getHash();
+
     String key();
 
     String groupId();

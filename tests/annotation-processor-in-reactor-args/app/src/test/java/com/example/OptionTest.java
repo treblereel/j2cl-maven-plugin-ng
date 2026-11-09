@@ -28,5 +28,6 @@ public class OptionTest {
         MyOption res = MyOption.INSTANCE;
 
         Assert.assertEquals("my-option", res.getOption());
+        Assert.assertEquals("fr", res.getLocale());
     }
 }

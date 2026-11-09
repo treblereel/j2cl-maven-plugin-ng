@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>annotation-processor-in-reactor-args</artifactId>
-        <version>0.24.1</version>
+        <version>0.24.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>annotation-processor-in-reactor-args-app</artifactId>
@@ -54,8 +54,11 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24.1</version>
+                <version>0.24.3-SNAPSHOT</version>
                 <configuration>
+                    <defines>
+                        <goog.LOCALE>fr</goog.LOCALE>
+                    </defines>
                     <annotationProcessorsArgs>
                         <optionName>my-option</optionName>
                     </annotationProcessorsArgs>

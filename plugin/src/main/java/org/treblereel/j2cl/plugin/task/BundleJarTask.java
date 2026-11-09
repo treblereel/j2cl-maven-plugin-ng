@@ -3,7 +3,6 @@ package org.treblereel.j2cl.plugin.task;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +42,8 @@ import com.google.javascript.jscomp.transpile.Transpiler;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class BundleJarTask extends TaskInput {
 
@@ -204,7 +205,7 @@ public class BundleJarTask extends TaskInput {
         for (File zipFile : jsZips) {
             List<SourceFile> sourceFiles;
             try {
-                sourceFiles = SourceFile.fromZipFile(zipFile.toPath().toString(), Charset.defaultCharset());
+                sourceFiles = FileUtils.readJsZip(zipFile.toPath(), Charset.defaultCharset());
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read jsZip " + zipFile, e);
             }
@@ -212,7 +213,7 @@ public class BundleJarTask extends TaskInput {
             if (sourceFiles.isEmpty()) continue;
 
             List<ClosureBundleTask.DependencyInfoAndSource> dependencyInfos = new ArrayList<>();
-            Compiler jsCompiler = new Compiler(System.err);
+            Compiler jsCompiler = new ClosureCompiler(System.err);
 
             for (SourceFile sf : sourceFiles) {
                 CompilerInput input = new CompilerInput(sf);
@@ -364,11 +365,7 @@ public class BundleJarTask extends TaskInput {
                 String name = entry.getName();
                 if (!name.startsWith(prefix)) continue;
                 String relative = name.substring(prefix.length());
-                Path targetPath = sourceMapDir.resolve(relative);
-                Files.createDirectories(targetPath.getParent());
-                try (InputStream is = zf.getInputStream(entry)) {
-                    Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
-                }
+                FileUtils.extractZipEntry(zf, entry, sourceMapDir, relative);
             }
         }
     }

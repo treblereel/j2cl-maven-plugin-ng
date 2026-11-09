@@ -44,6 +44,11 @@ public class MyProcessor extends AbstractProcessor {
     }
 
     @Override
+    public Set<String> getSupportedOptions() {
+        return Set.of("optionName", "goog.LOCALE");
+    }
+
+    @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         TypeElement annotationElt = processingEnv.getElementUtils().getTypeElement("com.example.MyAnnotation");
         Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotationElt);
@@ -67,6 +72,12 @@ public class MyProcessor extends AbstractProcessor {
                         .build();
 
                 builder.addMethod(methodSpec);
+                builder.addMethod(MethodSpec.methodBuilder("getLocale")
+                        .addModifiers(Modifier.PUBLIC)
+                        .addAnnotation(Override.class)
+                        .returns(String.class)
+                        .addCode("return $S;", options.getOrDefault("goog.LOCALE", "default"))
+                        .build());
                 JavaFile newFile = JavaFile.builder(origClassName.packageName(), builder.build()).build();
                 newFile.writeTo(filer);
             } catch (IOException e) {

@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -28,6 +27,7 @@ import com.google.j2cl.transpiler.J2clTranspilerOptions;
 import com.google.j2cl.transpiler.backend.Backend;
 import com.google.j2cl.transpiler.frontend.Frontend;
 import org.treblereel.j2cl.plugin.log.BuildLog;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class J2cl {
 
@@ -68,7 +68,8 @@ public class J2cl {
                 .setEmitReadableSourceMap(false)
                 .setGenerateKytheIndexingMetadata(false)
                 .setStrippedAnnotationNames(ImmutableList.of());
-        this.wasmEntryPoints = wasmEntryPoints;
+        this.wasmEntryPoints = wasmEntryPoints.stream()
+                .map(pattern -> pattern.replaceAll("(?<!\\.)\\*", ".*")).toList();
     }
 
     private static Path resolveFile(File file) {
@@ -159,11 +160,7 @@ public class J2cl {
 
                     Path moduleDir = moduleDirs.computeIfAbsent(module,
                             m -> patchDir.resolve(m.replace('.', '_')));
-                    Path target = moduleDir.resolve(name);
-                    Files.createDirectories(target.getParent());
-                    try (var is = jar.getInputStream(entry)) {
-                        Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
-                    }
+                    FileUtils.extractZipEntry(jar, entry, moduleDir, name);
                 }
             }
 
@@ -229,7 +226,8 @@ public class J2cl {
         return result;
     }
 
-    private static String getModuleForEntry(String name) {
+    static String getModuleForEntry(String name) {
+        name = name.replace('\\', '/');
         for (var entry : NON_BASE_MODULE_PREFIXES.entrySet()) {
             if (name.startsWith(entry.getKey())) {
                 return entry.getValue();

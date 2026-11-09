@@ -39,7 +39,10 @@ import com.google.javascript.rhino.StaticSourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
+import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public class ClosureTask extends TaskInput {
 
@@ -55,7 +58,6 @@ public class ClosureTask extends TaskInput {
     private static final Path PUBLIC = Paths.get("public");
     private static final PathMatcher JS_SOURCES = withSuffix(".js");
 
-    private static final PathMatcher XTB = withSuffix(".xtb");
     private static final PathMatcher NATIVE_JS_SOURCES = withSuffix(".native.js");
     private static final PathMatcher EXTERNS_SOURCES = withSuffix(".externs.js");
 
@@ -64,9 +66,6 @@ public class ClosureTask extends TaskInput {
     private static final PathMatcher IN_META_INF_RESOURCES = path -> path.startsWith(META_INF_RESOURCES);
 
     private static final PathMatcher IN_PUBLIC = path -> StreamSupport.stream(path.spliterator(), false).anyMatch(PUBLIC::equals);
-
-
-    private static final List<String> GOOG_LIBRARRY = List.of("lib/base.js", "lib/goog.js", "lib/reflect.js");
 
     /**
      * JS files that closure should use as type information
@@ -86,7 +85,7 @@ public class ClosureTask extends TaskInput {
     /**
      * JS files that closure should accept as input to bundle/compile.
      */
-    private static final PathMatcher PLAIN_JS_SOURCES = new PathMatcher() {
+    static final PathMatcher PLAIN_JS_SOURCES = new PathMatcher() {
         @Override
         public boolean matches(Path path) {
             if (IN_META_INF.matches(path) && !IN_META_INF_EXTERNS.matches(path)) {
@@ -151,7 +150,7 @@ public class ClosureTask extends TaskInput {
 
         extra.forEach(f -> {
             try {
-                inputs.addAll(SourceFile.fromZipFile(f.toPath().toString(), Charset.defaultCharset()));
+                inputs.addAll(FileUtils.readJsZip(f.toPath(), Charset.defaultCharset()));
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read extra files from " + f, e);
             }
@@ -178,16 +177,16 @@ public class ClosureTask extends TaskInput {
             List<SourceMap.LocationMapping> mappings = new ArrayList<>();
             Set<String> fixedPath = new HashSet<>();
             for (FileEntry file : selfJsOutPut.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (FileEntry file : depsTranspiled.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (FileEntry file : depsUnzipped.files()) {
-                fixedPath.add(file.getParentPath().toString());
+                fixedPath.add(file.getParentPath().toString().replace('\\', '/'));
             }
             for (File f : extra) {
-                String zipPrefix = f.toPath().toString() + "!/";
+                String zipPrefix = f.toPath().toString().replace('\\', '/') + "!/";
                 String commonDir = null;
                 for (SourceFile sf : inputs) {
                     if (!sf.getName().startsWith(zipPrefix)) continue;
@@ -221,7 +220,7 @@ public class ClosureTask extends TaskInput {
         options.setSkipNonTranspilationPasses(false);
         options.setClosurePass(true);
         options.setDependencyOptions(DependencyOptions.sortOnly());
-        org.treblereel.j2cl.plugin.xbt.XtbResolver.applyTranslations(options,
+        XtbResolver.applyTranslations(options,
                 buildContext.getConfig().translationsFile(), buildContext.getConfig().defines(),
                 buildContext.getProjectBaseDir(), buildContext.getAdditionalXtbSearchPaths(), logger);
 
@@ -291,7 +290,8 @@ public class ClosureTask extends TaskInput {
                         mapLine,
                         StandardCharsets.UTF_8,
                         StandardOpenOption.APPEND
-                );            }
+                );
+            }
         } catch (IOException e) {
             throw new RuntimeException("Unable to write output file: " + outputPath(), e);
         }
@@ -299,7 +299,7 @@ public class ClosureTask extends TaskInput {
 
     private Compiler runCompiler(List<SourceFile> externs, List<SourceFile> inputs, CompilerOptions options) {
         Objects.requireNonNull(options);
-        Compiler compiler = new Compiler();
+        Compiler compiler = new ClosureCompiler();
         Result result = compiler.compile(externs, inputs, options);
 
         if (!result.success) {
@@ -368,7 +368,10 @@ public class ClosureTask extends TaskInput {
                 break;
             }
         }
-        return p.subpath(publicIndex + 1, p.getNameCount());
+        if (publicIndex >= 0) {
+            return p.subpath(publicIndex + 1, p.getNameCount());
+        }
+        return p.subpath(META_INF_RESOURCES.getNameCount(), p.getNameCount());
     }
 
     private void setCompilationLevel(CompilerOptions options) {
@@ -379,6 +382,7 @@ public class ClosureTask extends TaskInput {
                     + ". Valid values: ADVANCED_OPTIMIZATIONS, SIMPLE_OPTIMIZATIONS, WHITESPACE_ONLY, BUNDLE_JAR");
         }
         level.setOptionsForCompilationLevel(options);
+        XtbResolver.applyDefaultMessageBundle(options, level);
         logger.info("Using compilation level: " + level);
     }
 

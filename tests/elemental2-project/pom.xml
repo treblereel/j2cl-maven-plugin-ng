@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.treblereel.j2cl.plugin.tests</groupId>
         <artifactId>j2cl-plugin-tests</artifactId>
-        <version>0.24.1</version>
+        <version>0.24.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>elemental2-project</artifactId>
@@ -16,42 +16,42 @@
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-core</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-dom</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-indexeddb</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-media</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-promise</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-webgl</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-webstorage</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.elemental2</groupId>
             <artifactId>elemental2-webassembly</artifactId>
-            <version>1.3.2</version>
+            <version>1.4.0</version>
         </dependency>
     </dependencies>
     <build>
@@ -59,7 +59,7 @@
             <plugin>
                 <groupId>org.treblereel.j2cl.plugin</groupId>
                 <artifactId>j2cl-maven-plugin</artifactId>
-                <version>0.24.1</version>
+                <version>0.24.3-SNAPSHOT</version>
                 <executions>
                     <execution>
                         <id>compile</id>

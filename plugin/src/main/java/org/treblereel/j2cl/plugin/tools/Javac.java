@@ -28,6 +28,13 @@ public class Javac {
     public Javac(BuildLog log, File generatedSourcesDir, List<File> sourcePaths,
                  List<File> classpath, File classOutputDir, File bootstrapClasspath,
                  List<String> processorNames, List<String> javacOpts) throws IOException {
+        this(log, generatedSourcesDir, sourcePaths, classpath, classOutputDir, bootstrapClasspath,
+                processorNames, javacOpts, classpath);
+    }
+
+    public Javac(BuildLog log, File generatedSourcesDir, List<File> sourcePaths,
+                 List<File> classpath, File classOutputDir, File bootstrapClasspath,
+                 List<String> processorNames, List<String> javacOpts, List<File> processorPath) throws IOException {
         this.log = log;
 
         javacOptions = new ArrayList<>();
@@ -37,7 +44,7 @@ public class Javac {
         javacOptions.add("--release");
         javacOptions.add("21");
 
-        if (generatedSourcesDir == null) {
+        if (generatedSourcesDir == null || processorNames.isEmpty()) {
             javacOptions.add("-proc:none");
         } else if (!processorNames.isEmpty()) {
             javacOptions.add("-processor");
@@ -52,6 +59,9 @@ public class Javac {
 
         fileManager.setLocation(StandardLocation.SOURCE_PATH, sourcePaths);
         fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
+        if (!processorNames.isEmpty()) {
+            fileManager.setLocation(StandardLocation.ANNOTATION_PROCESSOR_PATH, processorPath);
+        }
         fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(classOutputDir));
 
         if (bootstrapClasspath != null) {
@@ -66,32 +76,34 @@ public class Javac {
         }
     }
 
-    public boolean compile(List<String> sourceFiles) {
-        Iterable<? extends JavaFileObject> compilationUnits =
-                fileManager.getJavaFileObjectsFromStrings(sourceFiles);
+    public boolean compile(List<String> sourceFiles) throws IOException {
+        try (fileManager) {
+            Iterable<? extends JavaFileObject> compilationUnits =
+                    fileManager.getJavaFileObjectsFromStrings(sourceFiles);
 
-        CompilationTask task = compiler.getTask(
-                null, fileManager, listener, javacOptions, null, compilationUnits);
+            CompilationTask task = compiler.getTask(
+                    null, fileManager, listener, javacOptions, null, compilationUnits);
 
-        try {
-            return task.call();
-        } finally {
-            listener.getDiagnostics().forEach(d -> {
-                String message = d.getMessage(Locale.getDefault());
-                JavaFileObject source = d.getSource();
-                if (source != null) {
-                    String path = source.toUri().getPath();
-                    String prefix = path
-                            + (d.getLineNumber() > 0 ? ":" + d.getLineNumber() : "") + ": ";
-                    message = prefix + message;
-                }
-                switch (d.getKind()) {
-                    case ERROR -> log.error("Error:" + message);
-                    case WARNING, MANDATORY_WARNING -> log.warn(message);
-                    case NOTE -> log.info(message);
-                    case OTHER -> log.debug(message);
-                }
-            });
+            try {
+                return task.call();
+            } finally {
+                listener.getDiagnostics().forEach(d -> {
+                    String message = d.getMessage(Locale.getDefault());
+                    JavaFileObject source = d.getSource();
+                    if (source != null) {
+                        String path = source.toUri().getPath();
+                        String prefix = path
+                                + (d.getLineNumber() > 0 ? ":" + d.getLineNumber() : "") + ": ";
+                        message = prefix + message;
+                    }
+                    switch (d.getKind()) {
+                        case ERROR -> log.error("Error:" + message);
+                        case WARNING, MANDATORY_WARNING -> log.warn(message);
+                        case NOTE -> log.info(message);
+                        case OTHER -> log.debug(message);
+                    }
+                });
+            }
         }
     }
 }

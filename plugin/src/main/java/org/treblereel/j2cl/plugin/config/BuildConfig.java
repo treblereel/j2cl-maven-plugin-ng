@@ -3,6 +3,7 @@ package org.treblereel.j2cl.plugin.config;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.maven.artifact.Artifact;
 import org.treblereel.j2cl.plugin.tools.AptPath;
@@ -72,7 +73,9 @@ public class BuildConfig implements Config {
         this.languageOut = languageOut;
         this.checkAssertions = checkAssertions;
         this.env = env;
-        this.annotationProcessorsArgs = annotationProcessorsArgs;
+        this.annotationProcessorsArgs = new TreeMap<>();
+        defines.forEach((key, value) -> this.annotationProcessorsArgs.put(key, String.valueOf(value)));
+        this.annotationProcessorsArgs.putAll(annotationProcessorsArgs);
         this.extraAnnotationProcessors = extraAnnotationProcessors;
         this.backend = backend;
         this.wasmEntryPoints = wasmEntryPoints;

@@ -16,6 +16,7 @@ import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public class ClosurePassTask extends TaskInput {
@@ -39,6 +40,10 @@ public class ClosurePassTask extends TaskInput {
         if (xtbFiles.isEmpty()) {
             copyAllFiles(transpiled);
             return;
+        }
+
+        for (File f : xtbFiles) {
+            logger.info("Using translations file: " + f.getAbsolutePath());
         }
 
         for (FileEntry fe : transpiled.files()) {
@@ -70,6 +75,8 @@ public class ClosurePassTask extends TaskInput {
                                       java.util.List<File> xtbFiles) {
         CompilerOptions options = new CompilerOptions();
         CompilationLevel.WHITESPACE_ONLY.setOptionsForCompilationLevel(options);
+        // WHITESPACE_ONLY otherwise skips message replacement along with optimization passes.
+        options.setSkipNonTranspilationPasses(false);
         options.setClosurePass(false);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
         options.setLanguageOut(CompilerOptions.LanguageMode.NO_TRANSPILE);
@@ -77,7 +84,7 @@ public class ClosurePassTask extends TaskInput {
         Object locale = buildContext.getConfig().defines().get("goog.LOCALE");
         XtbResolver.applyXtbFiles(options, xtbFiles, locale != null ? locale.toString() : null, logger);
 
-        Compiler compiler = new Compiler();
+        Compiler compiler = new ClosureCompiler();
         compiler.disableThreads();
         List<SourceFile> inputs = List.of(SourceFile.fromCode(name, source));
         Result result = compiler.compile(List.of(), inputs, options);

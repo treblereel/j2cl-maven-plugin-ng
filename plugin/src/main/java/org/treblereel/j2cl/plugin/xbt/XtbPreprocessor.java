@@ -42,6 +42,9 @@ public class XtbPreprocessor {
         }
 
         Node selectedBundle = selectBundle(translationbundleNode, locale);
+        if (selectedBundle == null) {
+            throw new IllegalArgumentException("No translation bundle for locale '" + locale + "'");
+        }
 
         String lang = selectedBundle.getAttributes().getNamedItem("lang").getNodeValue();
 
@@ -146,10 +149,7 @@ public class XtbPreprocessor {
             }
 
             Node selectedBundle = selectBundle(translationbundleNode, locale);
-            Node langAttr = selectedBundle.getAttributes().getNamedItem("lang");
-            if (langAttr != null) {
-                lang = langAttr.getNodeValue();
-            }
+            if (selectedBundle == null) continue;
             appendTranslations(sb, selectedBundle);
         }
 
@@ -205,8 +205,13 @@ public class XtbPreprocessor {
         return dbf;
     }
 
+    static boolean hasLocale(InputStream input, String locale) throws Exception {
+        Document doc = createDocumentBuilderFactory().newDocumentBuilder().parse(input);
+        return selectBundle(doc.getElementsByTagName("translationbundle"), locale) != null;
+    }
+
     private static Node selectBundle(NodeList bundles, String locale) {
-        if (locale == null || bundles.getLength() == 1) {
+        if (locale == null) {
             return bundles.item(0);
         }
         String normalized = locale.replace("-", "_");
@@ -215,12 +220,12 @@ public class XtbPreprocessor {
             Node langAttr = bundle.getAttributes().getNamedItem("lang");
             if (langAttr != null) {
                 String lang = langAttr.getNodeValue();
-                if (locale.equals(lang) || normalized.equals(lang)) {
+                if (normalized.equals(lang.replace("-", "_"))) {
                     return bundle;
                 }
             }
         }
-        return bundles.item(0);
+        return null;
     }
 
     static String escape(String part) {

@@ -7,9 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.Reader;
-import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -66,6 +64,7 @@ import org.openqa.selenium.support.ui.FluentWait;
 import org.treblereel.j2cl.plugin.config.BuildConfig;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.context.ReactorCacheInvalidation;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
@@ -76,9 +75,11 @@ import org.treblereel.j2cl.plugin.task.OutputTypes;
 import org.treblereel.j2cl.plugin.task.TaskInput;
 import org.treblereel.j2cl.plugin.task.TaskInputFactory;
 import org.treblereel.j2cl.plugin.tools.AptPath;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.tools.ServiceFileReader;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 @Mojo(
@@ -169,7 +170,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         ArtifactResolver artifactResolver = new ArtifactResolver(
                 project, repoSystem, remoteRepos, repoSession, session,
-                projectBuilder, defaultDependencyReplacement, buildLog
+                projectBuilder, defaultDependencyReplacement, buildLog,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)
         );
 
         // --- Assemble test classpath (includes junit-processor, junit-runtime, junit-annotations) ---
@@ -258,17 +260,9 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         ReactorDependency mainDep = new ReactorDependency(project, artifactResolver);
 
-        if ("IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode)) {
-            Path mainSource = Paths.get(project.getBuild().getSourceDirectory());
-            for (String root : project.getCompileSourceRoots()) {
-                Path rootPath = Paths.get(root);
-                if (!rootPath.equals(mainSource) && Files.exists(rootPath)) {
-                    mainDep.addAdditionalSourceDirectory(rootPath);
-                }
-            }
-        }
-
-        TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep);
+        // IGNORE_MAVEN consumes the outputs of Maven's processors instead of running them again.
+        TestReactorDependency testDep = new TestReactorDependency(project, artifactResolver, mainDep,
+                "IGNORE_MAVEN".equalsIgnoreCase(annotationProcessorMode));
         // The emulation JARs are compiler classpath entries, but their Java sources must also be task dependencies
         // so Closure and WASM receive the org.junit.Assert and junit.framework.TestCase implementations.
         testDep.addDependency(new JarDependency(junitEmulSources, artifactResolver));
@@ -279,6 +273,8 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             return;
         }
 
+        ReactorCacheInvalidation.invalidate(
+                testDep, testBuildContext.getOutputDirectory());
         try {
             if (isWasm) {
                 TaskInputFactory.create(testDep, testBuildContext, OutputTypes.WASM_OPTIMIZED, buildLog)
@@ -342,31 +338,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         HttpServer server = null;
         WebDriver driver = null;
         try {
-            server = HttpServer.create(new InetSocketAddress(0), 0);
-            Path webRoot = Paths.get(webappDirectory);
-            server.createContext("/", exchange -> {
-                Path file = webRoot.resolve(exchange.getRequestURI().getPath().substring(1));
-                if (Files.exists(file) && !Files.isDirectory(file)) {
-                    byte[] bytes = Files.readAllBytes(file);
-                    String name = file.getFileName().toString();
-                    String contentType;
-                    if (name.endsWith(".html")) contentType = "text/html";
-                    else if (name.endsWith(".js")) contentType = "application/javascript";
-                    else if (name.endsWith(".wasm")) contentType = "application/wasm";
-                    else {
-                        contentType = Files.probeContentType(file);
-                        if (contentType == null) contentType = "application/octet-stream";
-                    }
-                    exchange.getResponseHeaders().set("Content-Type", contentType);
-                    exchange.sendResponseHeaders(200, bytes.length);
-                    try (OutputStream os = exchange.getResponseBody()) {
-                        os.write(bytes);
-                    }
-                } else {
-                    exchange.sendResponseHeaders(404, -1);
-                    exchange.close();
-                }
-            });
+            server = TestHttpServer.create(Paths.get(webappDirectory));
             server.start();
             int port = server.getAddress().getPort();
 
@@ -382,13 +354,11 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 Path htmlPath = outputJsPath.resolveSibling(
                         outputJsPath.getFileName().toString().replace(".js", ".html"));
 
-                if (!Files.exists(htmlPath)) {
-                    buildLog.warn("HTML file not found for test: " + testClass);
-                    continue;
-                }
+                requireTestArtifact(htmlPath, testClass);
+                requireTestArtifact(outputJsPath, testClass);
 
                 Path relativePath = Paths.get(webappDirectory).relativize(htmlPath);
-                String url = "http://localhost:" + port + "/" + relativePath.toString().replace(File.separator, "/");
+                String url = "http://127.0.0.1:" + port + "/" + relativePath.toString().replace(File.separator, "/");
 
                 buildLog.info("Test started: " + testClass);
                 buildLog.info("Fetching " + url);
@@ -438,6 +408,13 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         } // try (testBuildContext)
     }
 
+    static void requireTestArtifact(Path file, String testClass) throws MojoExecutionException {
+        if (!Files.isRegularFile(file) || !Files.isReadable(file)) {
+            throw new MojoExecutionException("Required artifact for discovered test " + testClass
+                    + " is missing or unreadable: " + file);
+        }
+    }
+
     private List<SourceFile> collectJsSources(Path outputDir, TestReactorDependency testDep,
                                                List<Dependency> allDeps, Path testSuiteDir,
                                                BuildConfig config) throws IOException {
@@ -470,7 +447,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         // jsZips provide pre-compiled JS (jre runtime, bootstrap, junit-runtime, closure-test)
         for (File jsZip : config.getJsZip()) {
-            inputs.addAll(SourceFile.fromZipFile(jsZip.toPath().toString(), Charset.defaultCharset()));
+            inputs.addAll(FileUtils.readJsZip(jsZip.toPath(), Charset.defaultCharset()));
         }
 
         return inputs;
@@ -517,10 +494,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.info("Compiling test: " + testClass);
 
             Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
-            if (!Files.exists(testSuiteFile)) {
-                buildLog.warn("Test suite file not found: " + testSuiteFile);
-                continue;
-            }
+            requireTestArtifact(testSuiteFile, testClass);
 
             try {
                 Path tmpDir = Files.createTempDirectory("j2cl-test-" + testClass);
@@ -536,7 +510,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 collectDependencyExterns(outputDir, testDep, allDeps, externs);
                 CompilerOptions options = createClosureOptions(testScriptFilename);
 
-                Compiler compiler = new Compiler();
+                Compiler compiler = new ClosureCompiler();
                 Result result = compiler.compile(externs, inputs, options);
 
                 if (!result.success) {
@@ -596,10 +570,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
             buildLog.info("Compiling WASM test harness: " + testClass);
 
             Path testSuiteFile = bytecodeOutput.resolve(testFilePathWithoutSuffix + ".testsuite");
-            if (!Files.exists(testSuiteFile)) {
-                buildLog.warn("Test suite file not found: " + testSuiteFile);
-                continue;
-            }
+            requireTestArtifact(testSuiteFile, testClass);
 
             try {
                 Path tmpDir = Files.createTempDirectory("j2cl-wasm-test-" + testClass);
@@ -625,13 +596,13 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 List<SourceFile> inputs = new ArrayList<>();
                 collectJsFromDirectory(tmpDir, inputs);
                 for (File jsZip : buildConfig.getJsZip()) {
-                    inputs.addAll(SourceFile.fromZipFile(jsZip.toPath().toString(), Charset.defaultCharset()));
+                    inputs.addAll(FileUtils.readJsZip(jsZip.toPath(), Charset.defaultCharset()));
                 }
 
                 List<SourceFile> externs = loadExterns();
                 CompilerOptions options = createWasmTestClosureOptions(testScriptFilename);
 
-                Compiler compiler = new Compiler();
+                Compiler compiler = new ClosureCompiler();
                 Result result = compiler.compile(externs, inputs, options);
 
                 if (!result.success) {
@@ -744,6 +715,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
         CompilationLevel level = CompilationLevel.fromString(compilationLevel);
         if (level != null) {
             level.setOptionsForCompilationLevel(options);
+            XtbResolver.applyDefaultMessageBundle(options, level);
         } else {
             CompilationLevel.BUNDLE.setOptionsForCompilationLevel(options);
         }

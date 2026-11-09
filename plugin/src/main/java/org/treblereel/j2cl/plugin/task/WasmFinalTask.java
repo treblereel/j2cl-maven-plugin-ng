@@ -1,17 +1,28 @@
 package org.treblereel.j2cl.plugin.task;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+import com.google.javascript.jscomp.CommandLineRunner;
+import com.google.javascript.jscomp.CompilationLevel;
+import com.google.javascript.jscomp.Compiler;
+import com.google.javascript.jscomp.CompilerOptions;
+import com.google.javascript.jscomp.DependencyOptions;
+import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
+import org.treblereel.j2cl.plugin.tools.ClosureCompiler;
+import org.treblereel.j2cl.plugin.tools.ClosureLibrary;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class WasmFinalTask extends TaskInput {
 
@@ -44,11 +55,9 @@ public class WasmFinalTask extends TaskInput {
             copyFromOutput(optimized, baseName + ".symbols", webappDirectory);
 
             Path importsFile = bundled.paths().get(0).resolve("imports.js.txt");
-            if (Files.exists(importsFile)) {
-                Path targetImports = webappDirectory.resolve(baseName + ".imports.js");
-                Files.createDirectories(targetImports.getParent());
-                Files.copy(importsFile, targetImports, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Path targetImports = webappDirectory.resolve(baseName + ".imports.js");
+            Files.createDirectories(targetImports.getParent());
+            writeImports(importsFile, targetImports);
 
             generateModuleLoader(webappDirectory, baseName);
 
@@ -71,18 +80,46 @@ public class WasmFinalTask extends TaskInput {
         }
     }
 
+    private void writeImports(Path importsFile, Path target) throws IOException {
+        List<SourceFile> inputs = new ArrayList<>();
+        ClosureLibrary.get().forEach((name, code) -> inputs.add(SourceFile.fromCode(name, code)));
+        inputs.addAll(FileUtils.readJsZip(buildContext.getConfig().getWasmJreJsZip().toPath(), StandardCharsets.UTF_8));
+        TaskOutput self = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
+        TaskOutput deps = input(getFlattenDependencies(), OutputTypes.UNZIPPED_DEPENDENCIES);
+        Stream.concat(self.filter(ClosureTask.PLAIN_JS_SOURCES).files().stream(),
+                deps.filter(ClosureTask.PLAIN_JS_SOURCES).files().stream())
+                .forEach(file -> inputs.add(SourceFile.fromFile(file.getAbsolutePath().toString())));
+        inputs.add(SourceFile.fromCode("wasm-imports.js",
+                "goog.module('j2cl.wasm.imports'); goog.module.declareLegacyNamespace();\n"
+                        + Files.readString(importsFile) + "\nexports = getImports;\n"));
+
+        CompilerOptions options = new CompilerOptions();
+        CompilationLevel.SIMPLE_OPTIMIZATIONS.setOptionsForCompilationLevel(options);
+        options.setClosurePass(true);
+        options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_NEXT);
+        options.setLanguageOut(CompilerOptions.LanguageMode.ECMASCRIPT_2017);
+        options.setDependencyOptions(DependencyOptions.sortOnly());
+        Compiler compiler = new ClosureCompiler();
+        var result = compiler.compile(CommandLineRunner.getDefaultExterns(), inputs, options);
+        if (!result.success) {
+            result.errors.forEach(error -> logger.error(error.toString()));
+            throw new IllegalStateException("Failed to compile WASM imports for " + dependency.key());
+        }
+        Files.writeString(target, compiler.toSource() + "\nexport const getImports = j2cl.wasm.imports;\n");
+    }
+
     private void generateModuleLoader(Path webappDirectory, String baseName) throws IOException {
         String wasmFileName = Paths.get(baseName).getFileName() + ".wasm";
         String importsFileName = Paths.get(baseName).getFileName() + ".imports.js";
 
-        String moduleJs = "import { instantiate as _instantiate } from './" + importsFileName + "';\n"
+        String moduleJs = "import { getImports } from './" + importsFileName + "';\n"
                 + "\n"
                 + "let _instance;\n"
                 + "\n"
                 + "export async function instantiateStreaming(wasmUrl) {\n"
                 + "  if (_instance) return _instance;\n"
-                + "  const response = typeof wasmUrl === 'string' ? fetch(wasmUrl) : wasmUrl;\n"
-                + "  const { instance } = await WebAssembly.instantiateStreaming(response, {\n"
+                + "  const response = typeof wasmUrl === 'string' || wasmUrl instanceof URL ? fetch(wasmUrl) : wasmUrl;\n"
+                + "  const { instance } = await WebAssembly.instantiateStreaming(response, getImports(), {\n"
                 + "    builtins: ['js-string'],\n"
                 + "    importedStringConstants: \"'\"\n"
                 + "  });\n"
@@ -91,7 +128,7 @@ public class WasmFinalTask extends TaskInput {
                 + "}\n"
                 + "\n"
                 + "export async function instantiate() {\n"
-                + "  return instantiateStreaming('./" + wasmFileName + "');\n"
+                + "  return instantiateStreaming(new URL('./" + wasmFileName + "', import.meta.url));\n"
                 + "}\n";
 
         Path moduleFile = webappDirectory.resolve(baseName + ".module.js");
