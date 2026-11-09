@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, development ]
 
 jobs:
   build:
@@ -33,13 +33,36 @@ jobs:
     - name: Set up ChromeDriver
       uses: nanasess/setup-chromedriver@v3
 
+    - name: Set up Binaryen
+      shell: bash
+      run: |
+        case "$RUNNER_OS" in
+          Linux) platform=linux ;;
+          macOS) platform=macos ;;
+          Windows) platform=windows ;;
+        esac
+        arch=x86_64
+        if [ "$RUNNER_ARCH" = ARM64 ]; then arch=arm64; fi
+        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_125/binaryen-version_125-${arch}-${platform}.tar.gz" -o "$RUNNER_TEMP/binaryen.tar.gz"
+        tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/binaryen-version_125/bin" >> "$GITHUB_PATH"
+
+    - name: Check Binaryen
+      run: wasm-opt --version
+
     - name: Build plugin
-      run: mvn -B install -pl plugin -DskipTests
+      run: mvn -B install -pl plugin
 
     - name: Run tests
-      run: mvn -B package -pl tests "-Dcheckstyle.skip"
+      run: mvn -B -f tests/pom.xml package "-Dcheckstyle.skip"
       env:
         DISPLAY: ':99'
+
+    - name: Build localized bundle sample
+      run: mvn -B -f samples/single-module/pom.xml package "-Dcheckstyle.skip"
+
+    - name: Check published JS and WASM in Chrome
+      run: mvn -B -pl plugin test -Dtest=BuildOutputIntegrationTest -Dj2cl.integration=true "-Dcheckstyle.skip"
 
   checkstyle:
     runs-on: ubuntu-latest
