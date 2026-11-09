@@ -140,6 +140,7 @@ public class ReactorDependency implements Dependency {
 
     public List<Path> getWatchSourcePaths() {
         List<Path> result = new ArrayList<>(getSourcePaths());
+        result.addAll(additionalSourcePaths);
         if (artifactResolver != null && artifactResolver.isIncludeCompileSourceRoots()) {
             project.getCompileSourceRoots().stream().map(Paths::get).forEach(result::add);
         }

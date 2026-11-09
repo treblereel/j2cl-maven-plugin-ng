@@ -31,6 +31,7 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.treblereel.j2cl.plugin.config.BuildConfig;
 import org.treblereel.j2cl.plugin.context.ArtifactResolver;
 import org.treblereel.j2cl.plugin.context.BuildContext;
+import org.treblereel.j2cl.plugin.context.ReactorCacheInvalidation;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.log.MavenBuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
@@ -167,6 +168,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
     void doWatch(ReactorDependency project, BuildContext buildContext, BuildLog buildLog) {
         buildLog.info("Running initial compilation...");
         try {
+            ReactorCacheInvalidation.invalidate(project, buildContext.getOutputDirectory());
             runPipeline(project, buildContext, buildLog);
             buildLog.info("Initial compilation complete.");
         } catch (Exception e) {
@@ -295,6 +297,7 @@ public class WatchJ2clPluginMojo extends AbstractJ2clPluginMojo {
         buildContext.resetFailed();
 
         try {
+            ReactorCacheInvalidation.invalidate(project, buildContext.getOutputDirectory());
             runPipeline(project, buildContext, buildLog);
             long elapsed = System.currentTimeMillis() - start;
             buildLog.info(String.format("Recompilation complete in %.1fs", elapsed / 1000.0));
