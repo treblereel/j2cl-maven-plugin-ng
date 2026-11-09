@@ -30,8 +30,7 @@
                     <backend>WASM</backend>
                     <compilationLevel>BUNDLE</compilationLevel>
                     <wasmEntryPoints>
-                        <wasmEntryPoint>example.wasm.HelloWasm#add</wasmEntryPoint>
-                        <wasmEntryPoint>example.wasm.HelloWasm#multiply</wasmEntryPoint>
+                        <wasmEntryPoint>example.wasm.HelloWasm#*</wasmEntryPoint>
                     </wasmEntryPoints>
                 </configuration>
             </plugin>

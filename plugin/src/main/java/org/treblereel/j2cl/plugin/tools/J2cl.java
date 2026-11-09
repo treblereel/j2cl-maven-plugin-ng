@@ -68,7 +68,8 @@ public class J2cl {
                 .setEmitReadableSourceMap(false)
                 .setGenerateKytheIndexingMetadata(false)
                 .setStrippedAnnotationNames(ImmutableList.of());
-        this.wasmEntryPoints = wasmEntryPoints;
+        this.wasmEntryPoints = wasmEntryPoints.stream()
+                .map(pattern -> pattern.replaceAll("(?<!\\.)\\*", ".*")).toList();
     }
 
     private static Path resolveFile(File file) {
