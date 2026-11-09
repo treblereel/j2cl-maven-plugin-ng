@@ -254,8 +254,9 @@ public class ByteCodeTask extends TaskInput {
     }
 
     protected void createOutputJar(Path classesDir, File outputJar) throws IOException {
-        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(outputJar))) {
-            Files.walk(classesDir)
+        try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(outputJar));
+             Stream<Path> files = Files.walk(classesDir)) {
+            files
                     .filter(Files::isRegularFile)
                     .forEach(p -> {
                         String entryName = classesDir.relativize(p).toString()

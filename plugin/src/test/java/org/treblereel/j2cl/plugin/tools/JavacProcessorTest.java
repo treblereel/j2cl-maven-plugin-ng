@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -40,6 +42,44 @@ class JavacProcessorTest {
                 explicit ? List.of(Generator.class.getName()) : List.of(), List.of());
         assertTrue(javac.compile(List.of(source.toString())));
         assertEquals(explicit, Files.exists(generated.resolve("Generated.java")));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void releasesProcessorAndClasspathJarsAfterSuccessAndFailure(boolean failure) throws Exception {
+        Path library = Files.writeString(directory.resolve("Library.java"), "public class Library {}");
+        assertEquals(0, javax.tools.ToolProvider.getSystemJavaCompiler().run(null, null, null, library.toString()));
+        Path classpath = directory.resolve("library.jar");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(classpath))) {
+            zip.putNextEntry(new ZipEntry("Library.class"));
+            Files.copy(directory.resolve("Library.class"), zip);
+            zip.closeEntry();
+        }
+        Path processor = directory.resolve("processor.jar");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(processor))) {
+            for (Class<?> type : List.of(Generator.class, JavacProcessorTest.class)) {
+                String name = type.getName().replace('.', '/') + ".class";
+                zip.putNextEntry(new ZipEntry(name));
+                try (var input = type.getClassLoader().getResourceAsStream(name)) {
+                    zip.write(java.util.Objects.requireNonNull(input).readAllBytes());
+                }
+                zip.closeEntry();
+            }
+        }
+        Path source = Files.writeString(directory.resolve("App.java"),
+                "class App extends Library { " + (failure ? "Missing value;" : "") + " }");
+        Path generated = Files.createDirectory(directory.resolve("generated"));
+        Path classes = Files.createDirectory(directory.resolve("classes"));
+        BuildLog log = (BuildLog) Proxy.newProxyInstance(BuildLog.class.getClassLoader(),
+                new Class<?>[]{BuildLog.class}, (proxy, method, args) -> null);
+        Javac javac = new Javac(log, generated.toFile(), List.of(directory.toFile()),
+                List.of(classpath.toFile()), classes.toFile(), null,
+                List.of(Generator.class.getName()), List.of(), List.of(processor.toFile()));
+        assertEquals(!failure, javac.compile(List.of(source.toString())));
+        Files.writeString(classpath, "replaced");
+        Files.writeString(processor, "replaced");
+        Files.delete(classpath);
+        Files.delete(processor);
     }
 
     public static class Generator extends AbstractProcessor {

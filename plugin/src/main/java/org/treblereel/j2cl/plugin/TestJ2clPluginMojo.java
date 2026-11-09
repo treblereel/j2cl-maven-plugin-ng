@@ -78,6 +78,7 @@ import org.treblereel.j2cl.plugin.tools.AptPath;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
 import org.treblereel.j2cl.plugin.tools.JavacInternals;
 import org.treblereel.j2cl.plugin.tools.ServiceFileReader;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 @Mojo(
@@ -445,7 +446,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
 
         // jsZips provide pre-compiled JS (jre runtime, bootstrap, junit-runtime, closure-test)
         for (File jsZip : config.getJsZip()) {
-            inputs.addAll(SourceFile.fromZipFile(jsZip.toPath().toString(), Charset.defaultCharset()));
+            inputs.addAll(FileUtils.readJsZip(jsZip.toPath(), Charset.defaultCharset()));
         }
 
         return inputs;
@@ -594,7 +595,7 @@ public class TestJ2clPluginMojo extends AbstractJ2clPluginMojo {
                 List<SourceFile> inputs = new ArrayList<>();
                 collectJsFromDirectory(tmpDir, inputs);
                 for (File jsZip : buildConfig.getJsZip()) {
-                    inputs.addAll(SourceFile.fromZipFile(jsZip.toPath().toString(), Charset.defaultCharset()));
+                    inputs.addAll(FileUtils.readJsZip(jsZip.toPath(), Charset.defaultCharset()));
                 }
 
                 List<SourceFile> externs = loadExterns();

@@ -21,6 +21,7 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.tools.ClosureLibrary;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 
 public class WasmFinalTask extends TaskInput {
 
@@ -81,7 +82,7 @@ public class WasmFinalTask extends TaskInput {
     private void writeImports(Path importsFile, Path target) throws IOException {
         List<SourceFile> inputs = new ArrayList<>();
         ClosureLibrary.get().forEach((name, code) -> inputs.add(SourceFile.fromCode(name, code)));
-        inputs.addAll(SourceFile.fromZipFile(buildContext.getConfig().getWasmJreJsZip().toString(), StandardCharsets.UTF_8));
+        inputs.addAll(FileUtils.readJsZip(buildContext.getConfig().getWasmJreJsZip().toPath(), StandardCharsets.UTF_8));
         TaskOutput self = input(dependency, OutputTypes.UNZIPPED_DEPENDENCIES);
         TaskOutput deps = input(getFlattenDependencies(), OutputTypes.UNZIPPED_DEPENDENCIES);
         Stream.concat(self.filter(ClosureTask.PLAIN_JS_SOURCES).files().stream(),

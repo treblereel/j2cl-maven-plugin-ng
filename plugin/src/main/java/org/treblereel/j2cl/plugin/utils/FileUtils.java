@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -13,12 +14,32 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import com.google.javascript.jscomp.SourceFile;
 import org.treblereel.j2cl.plugin.model.Dependency;
 
 public class FileUtils {
+
+  /** Reads eagerly so Closure's global ZIP cache cannot keep build inputs locked on Windows. */
+  public static List<SourceFile> readJsZip(Path archive, Charset charset) throws IOException {
+    List<SourceFile> sources = new ArrayList<>();
+    try (ZipFile zip = new ZipFile(archive.toFile(), charset)) {
+      var entries = zip.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry.isDirectory() || !entry.getName().endsWith(".js")) continue;
+        try (InputStream input = zip.getInputStream(entry)) {
+          sources.add(SourceFile.fromCode(archive + "!" + File.separator + entry.getName(),
+                  new String(input.readAllBytes(), charset)));
+        }
+      }
+    }
+    return sources;
+  }
 
   public static void copyDirectory(Path sourceDir, Path targetDir) throws IOException {
     Files.walkFileTree(sourceDir, new SimpleFileVisitor<>() {

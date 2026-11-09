@@ -76,32 +76,34 @@ public class Javac {
         }
     }
 
-    public boolean compile(List<String> sourceFiles) {
-        Iterable<? extends JavaFileObject> compilationUnits =
-                fileManager.getJavaFileObjectsFromStrings(sourceFiles);
+    public boolean compile(List<String> sourceFiles) throws IOException {
+        try (fileManager) {
+            Iterable<? extends JavaFileObject> compilationUnits =
+                    fileManager.getJavaFileObjectsFromStrings(sourceFiles);
 
-        CompilationTask task = compiler.getTask(
-                null, fileManager, listener, javacOptions, null, compilationUnits);
+            CompilationTask task = compiler.getTask(
+                    null, fileManager, listener, javacOptions, null, compilationUnits);
 
-        try {
-            return task.call();
-        } finally {
-            listener.getDiagnostics().forEach(d -> {
-                String message = d.getMessage(Locale.getDefault());
-                JavaFileObject source = d.getSource();
-                if (source != null) {
-                    String path = source.toUri().getPath();
-                    String prefix = path
-                            + (d.getLineNumber() > 0 ? ":" + d.getLineNumber() : "") + ": ";
-                    message = prefix + message;
-                }
-                switch (d.getKind()) {
-                    case ERROR -> log.error("Error:" + message);
-                    case WARNING, MANDATORY_WARNING -> log.warn(message);
-                    case NOTE -> log.info(message);
-                    case OTHER -> log.debug(message);
-                }
-            });
+            try {
+                return task.call();
+            } finally {
+                listener.getDiagnostics().forEach(d -> {
+                    String message = d.getMessage(Locale.getDefault());
+                    JavaFileObject source = d.getSource();
+                    if (source != null) {
+                        String path = source.toUri().getPath();
+                        String prefix = path
+                                + (d.getLineNumber() > 0 ? ":" + d.getLineNumber() : "") + ": ";
+                        message = prefix + message;
+                    }
+                    switch (d.getKind()) {
+                        case ERROR -> log.error("Error:" + message);
+                        case WARNING, MANDATORY_WARNING -> log.warn(message);
+                        case NOTE -> log.info(message);
+                        case OTHER -> log.debug(message);
+                    }
+                });
+            }
         }
     }
 }

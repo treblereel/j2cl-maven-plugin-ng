@@ -204,7 +204,7 @@ public class BundleJarTask extends TaskInput {
         for (File zipFile : jsZips) {
             List<SourceFile> sourceFiles;
             try {
-                sourceFiles = SourceFile.fromZipFile(zipFile.toPath().toString(), Charset.defaultCharset());
+                sourceFiles = FileUtils.readJsZip(zipFile.toPath(), Charset.defaultCharset());
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read jsZip " + zipFile, e);
             }

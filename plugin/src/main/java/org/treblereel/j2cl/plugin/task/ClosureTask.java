@@ -40,6 +40,7 @@ import org.treblereel.j2cl.plugin.context.BuildContext;
 import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.tools.ClosureCompilerWarningsGuard;
+import org.treblereel.j2cl.plugin.utils.FileUtils;
 import org.treblereel.j2cl.plugin.xbt.XtbResolver;
 
 public class ClosureTask extends TaskInput {
@@ -148,7 +149,7 @@ public class ClosureTask extends TaskInput {
 
         extra.forEach(f -> {
             try {
-                inputs.addAll(SourceFile.fromZipFile(f.toPath().toString(), Charset.defaultCharset()));
+                inputs.addAll(FileUtils.readJsZip(f.toPath(), Charset.defaultCharset()));
             } catch (IOException e) {
                 throw new RuntimeException("Unable to read extra files from " + f, e);
             }
