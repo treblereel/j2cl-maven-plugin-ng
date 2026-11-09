@@ -77,11 +77,11 @@ public class BuildContext implements AutoCloseable {
     return config;
   }
 
-  public List<AptPath> getAPTProcessorPaths(MavenProject project) {
+  public List<AptPath> getAPTProcessorPaths(MavenProject project, boolean tests) {
     if (ignoreMavenAnnotationProcessors) {
       return List.of();
     }
-    return APTProcessors.getAPTProcessorPaths(project, artifactResolver, evaluator);
+    return APTProcessors.getAPTProcessorPaths(project, artifactResolver, evaluator, tests);
   }
 
   public boolean isIgnoreMavenAnnotationProcessors() {

@@ -19,12 +19,17 @@ public class APTProcessors {
   private static final String COMPILER_GA = "org.apache.maven.plugins:maven-compiler-plugin";
 
   public static List<AptPath> getAPTProcessorPaths(MavenProject project, ArtifactResolver artifactResolver, PluginParameterExpressionEvaluator evaluator) {
+    return getAPTProcessorPaths(project, artifactResolver, evaluator, false);
+  }
+
+  public static List<AptPath> getAPTProcessorPaths(MavenProject project, ArtifactResolver artifactResolver,
+                                                PluginParameterExpressionEvaluator evaluator, boolean tests) {
 
     Plugin plugin = project.getPlugin(COMPILER_GA);
 
     if (plugin == null) return List.of();
 
-    Xpp3Dom mavenCompilerConfig = getMergedCompilerConfig(project, plugin);
+    Xpp3Dom mavenCompilerConfig = getMergedCompilerConfig(project, plugin, tests);
     Xpp3Dom aps = mavenCompilerConfig.getChild("annotationProcessorPaths");
     if (aps == null) return List.of();
 
@@ -49,11 +54,14 @@ public class APTProcessors {
   }
 
 
-  private static Xpp3Dom getMergedCompilerConfig(MavenProject project, Plugin plugin) {
+  static Xpp3Dom getMergedCompilerConfig(MavenProject project, Plugin plugin, boolean tests) {
     Xpp3Dom base = (Xpp3Dom) plugin.getConfiguration();
     Xpp3Dom merged = base != null ? new Xpp3Dom(base) : new Xpp3Dom("configuration");
 
     for (PluginExecution exec : plugin.getExecutions()) {
+      String goal = tests ? "testCompile" : "compile";
+      String executionId = tests ? "default-testCompile" : "default-compile";
+      if (!exec.getGoals().contains(goal) && !executionId.equals(exec.getId())) continue;
       Xpp3Dom execCfg = (Xpp3Dom) exec.getConfiguration();
       if (execCfg != null) {
         merged = Xpp3DomUtils.mergeXpp3Dom(new Xpp3Dom(execCfg), merged);
