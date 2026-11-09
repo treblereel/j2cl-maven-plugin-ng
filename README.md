@@ -486,7 +486,7 @@ target/my-project-1.0/
 └── my-project/
     ├── my-project.wasm                ← compiled WASM binary
     ├── my-project.wasm.map            ← source maps
-    ├── my-project.imports.js          ← generated import bindings (Closure style)
+    ├── my-project.imports.js          ← standalone ES module with import bindings
     ├── my-project.module.js           ← ES module loader
     └── my-project.symbols             ← debug symbols
 ```
@@ -495,42 +495,21 @@ Static resources (HTML, CSS, images) should be placed in a `public/` directory i
 
 ### Loading WASM from HTML
 
-The generated `imports.js` uses Closure Library (`goog.require`). For standalone use without Closure Library, provide imports inline:
+The generated loader includes the JRE import bindings and resolves the WASM URL relative to itself:
 
 ```html
-<script>
-async function loadWasm() {
-    const importObj = {
-        'WebAssembly': WebAssembly,
-        'imports': {
-            // JRE support (required by j2cl runtime)
-            'Error': Error,
-            'Error.constructor': () => new Error(),
-            'j2wasm.ExceptionUtils.getJavaThrowable': (e) => e?.['__j2wasm$exception'] ?? null,
-            'j2wasm.ExceptionUtils.setJavaThrowable': (e, t) => {
-                if (e instanceof Object) { try { e['__j2wasm$exception'] = t; } catch(ex) {} }
-            },
-            'j2wasm.ExceptionUtils.isError': (obj) => obj instanceof Error,
-            'j2wasm.EqualityUtils.isSame': (a, b) => Object.is(a, b) || (a == null && b == null),
-            // ... more imports depending on what Java APIs you use
-        }
-    };
+<script type="module">
+import { instantiate } from './my-project/my-project.module.js';
 
-    // builtins and importedStringConstants are compile options (3rd argument)
-    const compileOpts = { builtins: ['js-string'], importedStringConstants: "'" };
-    const { instance } = await WebAssembly.instantiateStreaming(
-        fetch('./my-project/my-project.wasm'), importObj, compileOpts
-    );
-
-    // Call exported Java methods
-    console.log(instance.exports.add(2, 3));       // 5
-    console.log(instance.exports.multiply(4, 7));  // 28
-}
-loadWasm();
+const instance = await instantiate();
+console.log(instance.exports.add(2, 3));       // 5
+console.log(instance.exports.multiply(4, 7));  // 28
 </script>
 ```
 
-**Important:** `builtins` and `importedStringConstants` must be passed as the **third argument** (compile options) to `WebAssembly.instantiateStreaming`, not mixed into the import object. The `wasm:js-string` builtin module is provided by the browser engine (Chrome 130+, Firefox 128+, Safari 18.2+) and handles string operations directly in the WASM runtime without JS boundary crossing.
+The loader passes `builtins` and `importedStringConstants` as compile options to
+`WebAssembly.instantiateStreaming`. Serve the output over HTTP with the `.wasm`
+file's content type set to `application/wasm`.
 
 ### WASM → JS Callbacks
 

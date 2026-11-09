@@ -83,7 +83,7 @@ public class ClosureTask extends TaskInput {
     /**
      * JS files that closure should accept as input to bundle/compile.
      */
-    private static final PathMatcher PLAIN_JS_SOURCES = new PathMatcher() {
+    static final PathMatcher PLAIN_JS_SOURCES = new PathMatcher() {
         @Override
         public boolean matches(Path path) {
             if (IN_META_INF.matches(path) && !IN_META_INF_EXTERNS.matches(path)) {
