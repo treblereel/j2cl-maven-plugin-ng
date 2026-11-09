@@ -259,6 +259,10 @@ public abstract class TaskInput {
     }
 
     protected boolean hasSuccessMarker() {
+        // Published files live outside the task cache and may have been removed independently.
+        if (getOutputTypes() == OutputTypes.FINAL_TASK || getOutputTypes() == OutputTypes.BUNDLED_JS_APP) {
+            return false;
+        }
         try {
             BuildStatus status = readStatus();
             if (status == null || !status.getOutputTypes().contains(getOutputTypes())

@@ -23,6 +23,7 @@ import org.treblereel.j2cl.plugin.log.BuildLog;
 import org.treblereel.j2cl.plugin.model.Dependency;
 import org.treblereel.j2cl.plugin.model.JarDependency;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TaskCacheRegressionTest {
@@ -49,6 +50,38 @@ class TaskCacheRegressionTest {
             new StripSourcesTask(dependency, context, LOG).runTask().join();
             assertTrue(Files.readString(unzipped.resolve("Source.java")).contains("changed"));
             assertTrue(Files.readString(stripped.resolve("Source.java")).contains("changed"));
+        }
+    }
+
+    @Test
+    void republishesDeletedAppWithoutRecompilingCachedJavaScript() throws Exception {
+        Path jar = directory.resolve("lib.jar");
+        writeJar(jar, "original");
+        JarDependency dependency = dependency(jar);
+        try (BuildContext context = context()) {
+            TaskInput optimized = new TaskInput(dependency, context, LOG) {
+                public OutputTypes getOutputTypes() { return OutputTypes.OPTIMIZED_JS; }
+                public void process() {
+                    try {
+                        Files.writeString(outputPath().resolve("app.js"), "compiled");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+            Path optimizedPath = optimized.runTask().join().resolve("app.js");
+            var modified = Files.getLastModifiedTime(optimizedPath);
+            new TaskInput(dependency, context, LOG) {
+                public OutputTypes getOutputTypes() { return OutputTypes.TRANSPILED_JS; }
+                public void process() { }
+            }.runTask().join();
+            new FinalTask(dependency, context, LOG).runTask().join();
+            Path published = Path.of(context.getConfig().webappDirectory()).resolve("app.js");
+            Files.delete(published);
+            TaskInput.clearCache();
+            new FinalTask(dependency, context, LOG).runTask().join();
+            assertEquals("compiled", Files.readString(published));
+            assertEquals(modified, Files.getLastModifiedTime(optimizedPath));
         }
     }
 
